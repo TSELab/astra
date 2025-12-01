@@ -1,0 +1,24 @@
+# AStRA Toolchain (Go)
+
+Minimal Go implementation of the AStRA pipeline:
+
+- `astra parse`    → normalize raw logs
+- `astra map`      → map normalized events to AStRA schema
+- `astra graph`    → build a DAG and export JSON
+- `astra risk`     → compute risk metrics (centrality, articulation, topo)
+- `astra condense` → group nodes for simpler views
+
+## Quickstart
+
+```bash
+cd astra-go
+go build ./cmd/astra
+./astra parse   -i examples/github_push_log.json -o out/parsed.json
+./astra map     -i out/parsed.json -m examples/mapping.yaml -o out/mapped.json
+./astra graph   -i out/mapped.json -o out/graph.json
+./astra risk    -i out/graph.json -r out/risk.json --paths-from Principal --paths-to Artifact
+./astra condense -i out/graph.json -o out/condensed.json --group-by phase
+./astra viz -i out/graph.json -o out/graph.dot  
+dot -Tsvg out/graph.dot -o out/graph.svg  
+```
+
