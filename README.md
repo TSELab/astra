@@ -1,6 +1,6 @@
 # AStRA Toolchain (Go)
 
-Minimal Go implementation of the AStRA pipeline:
+Go implementation of the AStRA pipeline:
 
 - `astra parse`    → normalize raw logs
 - `astra map`      → map normalized events to AStRA schema
@@ -13,7 +13,7 @@ Minimal Go implementation of the AStRA pipeline:
 ```bash
 cd astra-go
 go build ./cmd/astra
-./astra parse   -i examples/github_push_log.json -o out/parsed.json
+./astra parse   -i github.com/repoURL -o out/parsed.json
 ./astra map     -i out/parsed.json -m examples/mapping.yaml -o out/mapped.json
 ./astra graph   -i out/mapped.json -o out/graph.json
 ./astra risk    -i out/graph.json -r out/risk.json --paths-from Principal --paths-to Artifact
