@@ -16,14 +16,14 @@ import (
 
 type BuildinfoParser struct{}
 
-func (p *BuildinfoParser) Parse(path string) (Normalized, error) {
+func (p *BuildinfoParser) Parse(path string) (Mapped, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return Normalized{}, err
+		return Mapped{}, err
 	}
 	print(b)
 
-	n := Normalized{Source: "in-toto", NormalizedAt: time.Now().Unix()}
+	n := Mapped{Source: "build-info", NormalizedAt: time.Now().Unix()}
 	return n, nil
 }
 

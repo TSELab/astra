@@ -7,13 +7,13 @@ import (
 
 type InTotoParser struct{}
 
-func (p *InTotoParser) Parse(path string) (Normalized, error) {
+func (p *InTotoParser) Parse(path string) (Mapped, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return Normalized{}, err
+		return Mapped{}, err
 	}
 	print(b)
+	n := Mapped{Source: "in-toto", NormalizedAt: time.Now().Unix()}
 
-	n := Normalized{Source: "in-toto", NormalizedAt: time.Now().Unix()}
 	return n, nil
 }

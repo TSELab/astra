@@ -7,14 +7,14 @@ import (
 
 type SlsaParser struct{}
 
-func (p *SlsaParser) Parse(path string) (Normalized, error) {
+func (p *SlsaParser) Parse(path string) (Mapped, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return Normalized{}, err
+		return Mapped{}, err
 	}
 	print(b)
 
-	n := Normalized{Source: "SLSA", NormalizedAt: time.Now().Unix()}
+	n := Mapped{Source: "SLSA", NormalizedAt: time.Now().Unix()}
 
 	return n, nil
 }
