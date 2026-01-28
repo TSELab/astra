@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
+	graph "github.com/abuishgair/astra/internal/graph"
+	"github.com/abuishgair/astra/internal/mapper"
 	parse "github.com/abuishgair/astra/internal/parser"
 )
 
@@ -56,6 +59,7 @@ func main() {
 			parser = &parse.SlsaParser{}
 		case "buildinfo": // debian buildinfo logs
 			parser = &parse.BuildinfoParser{}
+
 		default:
 			fmt.Fprintf(os.Stderr, "unknown format: %s\n", *format)
 			os.Exit(1)
@@ -64,51 +68,37 @@ func main() {
 		must(err)
 		must(writeJSON(*out, data))
 		fmt.Println("[OK] Parsed ->", *out)
-		/*
-			case "map":
+	case "map":
+		fs := flag.NewFlagSet("map", flag.ExitOnError)
+		in := fs.String("i", "", "input parsed JSON (parser.Mapped)")
+		out := fs.String("o", "", "output AStRA graph JSON (typed)")
 
-				fs := flag.NewFlagSet("map", flag.ExitOnError)
-				in := fs.String("i", "", "input normalized JSON")
-				m := fs.String("m", "", "mapping YAML")
-				out := fs.String("o", "", "output mapped JSON")
-				fs.Parse(os.Args[2:])
-				_ = m
-				if *in == "" || *out == "" || *m == "" {
-					fs.Usage()
-					os.Exit(2)
-				}
-				var norm parse.Normalized
-				b, err := os.ReadFile(*in)
-				must(err)
-				must(json.Unmarshal(b, &norm))
-				rules, err := mapping.LoadMapping(*m)
-				must(err)
-				mapped := mapping.MapEvents(norm, rules)
-				must(writeJSON(*out, mapped))
-				fmt.Println("[OK] Mapped ->", *out)
+		fs.Parse(os.Args[2:])
 
-			case "graph":
-				fs := flag.NewFlagSet("graph", flag.ExitOnError)
-				in := fs.String("i", "", "input mapped JSON")
-				out := fs.String("o", "", "output graph JSON")
-				fs.Parse(os.Args[2:])
-				if *in == "" || *out == "" {
-					fs.Usage()
-					os.Exit(2)
-				}
-				var mapped mapping.Mapped
-				b, err := os.ReadFile(*in)
-				must(err)
-				must(json.Unmarshal(b, &mapped))
-				// canonical graph
-				canonical := graphing.BuildGraph(mapped, false)
-				graphing.SaveGraphJSON(*out, canonical)
+		if *in == "" || *out == "" {
+			fs.Usage()
+			os.Exit(2)
+		}
 
-				// visual graph with cloned resources
-				visual := graphing.BuildGraph(mapped, true)
-				graphing.SaveGraphJSON("graph.visual.json", visual)
+		// Read parsed
+		var parsed parse.Mapped
+		b, err := os.ReadFile(*in)
+		must(err)
+		must(json.Unmarshal(b, &parsed))
 
-			case "risk":
+		// Convert to typed AStRA graph
+		astra := mapper.ToAstraGraph(parsed)
+
+		//  validate schema invariants
+		// must(graph.Validate(astra))
+
+		must(writeJSON(*out, astra))
+		fmt.Println("[OK] Mapped ->", *out)
+
+		//case "graph":
+	// TODO visual graph with cloned resources
+	/*
+		case "risk":
 				fs := flag.NewFlagSet("risk", flag.ExitOnError)
 				in := fs.String("i", "", "input graph JSON")
 				rep := fs.String("r", "", "output risk report JSON")
@@ -119,7 +109,7 @@ func main() {
 					fs.Usage()
 					os.Exit(2)
 				}
-				var g graphing.AstraGraph
+				var g graph.AstraGraph
 				b, err := os.ReadFile(*in)
 				must(err)
 				must(json.Unmarshal(b, &g))
@@ -137,44 +127,44 @@ func main() {
 					fs.Usage()
 					os.Exit(2)
 				}
-				var g graphing.AstraGraph
+				var g graph.AstraGraph
 				b, err := os.ReadFile(*in)
 				must(err)
 				must(json.Unmarshal(b, &g))
 				cg := condense.Condense(g, *group)
 				must(writeJSON(*out, cg))
 				fmt.Println("[OK] Condensed ->", *out)
+	*/
+	case "viz":
+		fs := flag.NewFlagSet("viz", flag.ExitOnError)
+		in := fs.String("i", "", "input graph JSON")
+		out := fs.String("o", "graph.dot", "output DOT file")
+		fs.Parse(os.Args[2:])
 
-			case "viz":
-				fs := flag.NewFlagSet("viz", flag.ExitOnError)
-				in := fs.String("i", "", "input graph JSON")
-				out := fs.String("o", "graph.dot", "output DOT file")
-				fs.Parse(os.Args[2:])
+		if *in == "" {
+			fs.Usage()
+			os.Exit(2)
+		}
 
-				if *in == "" {
-					fs.Usage()
-					os.Exit(2)
-				}
+		graphJSON, err := os.ReadFile(*in)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-				graphJSON, err := os.ReadFile(*in)
-				if err != nil {
-					log.Fatal(err)
-				}
+		var g graph.AstraGraph
+		if err := json.Unmarshal(graphJSON, &g); err != nil {
+			log.Fatal(err)
+		}
 
-				var g graphing.AstraGraph
-				if err := json.Unmarshal(graphJSON, &g); err != nil {
-					log.Fatal(err)
-				}
+		dot := graph.ToDOT(g)
+		if err := os.WriteFile(*out, []byte(dot), 0644); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("[OK] DOT graph written to", *out)
 
-				dot := graphing.ToDOT(g)
-				if err := os.WriteFile(*out, []byte(dot), 0644); err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println("[OK] DOT graph written to", *out)
+	default:
+		fmt.Println("unknown subcommand:", sub)
+		os.Exit(2)
 
-			default:
-				fmt.Println("unknown subcommand:", sub)
-				os.Exit(2)
-		*/
 	}
 }
