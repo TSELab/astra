@@ -17,12 +17,30 @@ import (
 type BuildinfoParser struct{}
 
 func (p *BuildinfoParser) Parse(path string) (Mapped, error) {
-	b, err := os.ReadFile(path)
+	graph, err := parseBuildinfo(path)
 	if err != nil {
-		return Mapped{}, err
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
-	print(b)
 
+	output, err := json.MarshalIndent(graph, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "JSON Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	inputParts := strings.Split(path, "/")
+	inputFile := inputParts[len(inputParts)-1]
+	outputFile := strings.TrimSuffix(inputFile, ".txt") + ".json"
+	outPath := "output/" + outputFile
+
+	err = os.WriteFile(outPath, output, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "File write error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Graph saved to %s\n", outPath)
 	n := Mapped{Source: "build-info", NormalizedAt: time.Now().Unix()}
 	return n, nil
 }
@@ -117,7 +135,6 @@ func parseBuildinfo(path string) (*graph.AstraGraph, error) {
 						Type:   "build-dependency",
 						URI:    uri,
 						Format: "deb",
-						UsedBy: buildOrigin,
 					})
 				}
 			}
@@ -158,7 +175,6 @@ func parseBuildinfo(path string) (*graph.AstraGraph, error) {
 		Type:   "tarball",
 		URI:    tarballURI,
 		Format: "orig.tar.xz",
-		UsedBy: buildOrigin,
 	})
 	resourceIDs = append(resourceIDs, tarball)
 
@@ -168,8 +184,6 @@ func parseBuildinfo(path string) (*graph.AstraGraph, error) {
 		Timestamp:   buildDate,
 		Arch:        buildArch,
 		Environment: env,
-		Consumed:    resourceIDs,
-		Outputs:     outputIDs,
 	})
 
 	if len(pgpLines) > 0 {
@@ -204,37 +218,4 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
-}
-
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: astra-parser <buildinfo-file>")
-		return
-	}
-
-	inputPath := os.Args[1]
-	graph, err := parseBuildinfo(inputPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	output, err := json.MarshalIndent(graph, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "JSON Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	inputParts := strings.Split(inputPath, "/")
-	inputFile := inputParts[len(inputParts)-1]
-	outputFile := strings.TrimSuffix(inputFile, ".txt") + ".json"
-	outPath := "output/" + outputFile
-
-	err = os.WriteFile(outPath, output, 0644)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "File write error: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Graph saved to %s\n", outPath)
 }
