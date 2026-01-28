@@ -278,9 +278,9 @@ func (p *GitParser) Parse(repoURL string) (Mapped, error) {
 				Label: f.Name,
 				Kind:  "git-file",
 				Attrs: map[string]string{
-					"content-hash": f.Hash.String(),
-					"size":         strconv.FormatInt(f.Size, 10),
-					"mode":         f.Mode.String(),
+					"hash": f.Hash.String(),
+					"size": strconv.FormatInt(f.Size, 10),
+					"mode": f.Mode.String(),
 				},
 			})
 		}
@@ -293,7 +293,7 @@ func (p *GitParser) Parse(repoURL string) (Mapped, error) {
 			Attrs: map[string]string{
 				"message": strings.TrimSpace(c.Message),
 				"author":  c.Author.Email,
-				"time":    strconv.FormatInt(c.Author.When.Unix(), 10),
+				"time":    strconv.FormatInt(c.Author.When.Unix(), 10), //TODO check format consistency
 			},
 		})
 
