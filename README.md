@@ -12,9 +12,10 @@ Go implementation of the AStRA pipeline:
 
 ```bash
 cd astra-go
+go mod tidy
 go build ./cmd/astra
 ./astra parse   -f git -i "git repo URL" -o out/parsed.json
-./astra map     -i out/parsed.json  -o out/astra-graph.json
+./astra map     -i out/parsed.json  -o out/graph.json
 ./astra graph   -i out/graph.json 
 ./astra risk    -i out/graph.json -r out/risk.json --paths-from Principal --paths-to Artifact
 ./astra condense -i out/graph.json -o out/condensed.json --group-by phase
