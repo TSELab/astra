@@ -8,6 +8,36 @@ Go implementation of the AStRA pipeline:
 - `astra risk`     → compute risk metrics (centrality, articulation, topo)
 - `astra condense` → group nodes for simpler views
 
+
+## Database Setup (Ent)
+This project uses Ent as the persistence layer for storing AStRA graphs.
+
+**1. Install dependencies**
+Run this once after cloning the repo:
+```bash
+cd astra-go
+go get entgo.io/ent@v0.14.6
+go get entgo.io/ent/cmd/ent@v0.14.6
+go mod tidy
+```
+
+**Defined schemas**
+Schemas are located in:
+internal/store/ent/schema/
+Each file defines one entity:
+artifact.go
+step.go
+principal.go
+resource.go
+edge.go
+
+**2. Generate Ent code**
+
+After creating or modifying schemas, run:
+```bash
+go run -mod=mod entgo.io/ent/cmd/ent generate ./internal/store/ent/schema
+```
+
 ## Quickstart
 
 ```bash

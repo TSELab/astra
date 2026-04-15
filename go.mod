@@ -9,7 +9,25 @@ require (
 )
 
 require (
+	ariga.io/atlas v0.36.2-0.20250730182955-2c6300d0a3e1 // indirect
+	github.com/agext/levenshtein v1.2.3 // indirect
+	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
+	github.com/bmatcuk/doublestar v1.3.4 // indirect
+	github.com/go-openapi/inflect v0.19.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
+	github.com/hashicorp/hcl/v2 v2.18.1 // indirect
+	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/zclconf/go-cty v1.14.4 // indirect
+	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
+	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+require (
 	dario.cat/mergo v1.0.0 // indirect
+	entgo.io/ent v0.14.6
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
@@ -19,6 +37,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect

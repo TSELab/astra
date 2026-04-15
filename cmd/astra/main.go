@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	gitparser "github.com/TSELab/astra/internal/parser/git"
 	intotoparser "github.com/TSELab/astra/internal/parser/intoto"
 	slsaparser "github.com/TSELab/astra/internal/parser/slsa"
+	entstore "github.com/TSELab/astra/internal/store/entstore"
 )
 
 func must(err error) {
@@ -91,7 +93,21 @@ func main() {
 
 		// Convert to typed AStRA graph
 		astra := mapper.ToAstraGraph(parsed)
+		ctx := context.Background()
 
+		// 3. open DB
+		db, err := entstore.OpenSQLite("astra.db")
+		if err != nil {
+			log.Fatalf("open db: %v", err)
+		}
+		defer db.Close()
+
+		// 4. save graph
+		if err := db.SaveGraph(ctx, astra); err != nil {
+			log.Fatalf("save graph: %v", err)
+		}
+
+		log.Println("Graph saved successfully")
 		//  validate schema invariants
 		// must(graph.Validate(astra))
 
