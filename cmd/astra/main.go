@@ -38,10 +38,19 @@ func writeJSON(path string, v any) error {
 }
 
 func main() {
+
 	if len(os.Args) < 2 {
 		fmt.Println("usage: astra <parse|map|graph|risk|condense> [flags]")
 		os.Exit(2)
 	}
+	ctx := context.Background()
+
+	// 3. open DB
+	db, err := entstore.OpenSQLite("astra.db")
+	if err != nil {
+		log.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
 	sub := os.Args[1]
 	switch sub {
 	case "parse":
@@ -93,14 +102,6 @@ func main() {
 
 		// Convert to typed AStRA graph
 		astra := mapper.ToAstraGraph(parsed)
-		ctx := context.Background()
-
-		// 3. open DB
-		db, err := entstore.OpenSQLite("astra.db")
-		if err != nil {
-			log.Fatalf("open db: %v", err)
-		}
-		defer db.Close()
 
 		// 4. save graph
 		if err := db.SaveGraph(ctx, astra); err != nil {
@@ -164,18 +165,20 @@ func main() {
 			fs.Usage()
 			os.Exit(2)
 		}
-
-		graphJSON, err := os.ReadFile(*in)
+		//load graph
+		loaded, err := db.LoadGraph(ctx, "")
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("load graph: %v", err)
 		}
+		fmt.Printf("loaded: %d artifacts, %d steps, %d principals, %d resources, %d edges\n",
+			len(loaded.Artifacts),
+			len(loaded.Steps),
+			len(loaded.Principals),
+			len(loaded.Resources),
+			len(loaded.Edges),
+		)
 
-		var g graph.AstraGraph
-		if err := json.Unmarshal(graphJSON, &g); err != nil {
-			log.Fatal(err)
-		}
-
-		dot := graph.ToDOT(g)
+		dot := graph.ToDOT(loaded)
 		if err := os.WriteFile(*out, []byte(dot), 0644); err != nil {
 			log.Fatal(err)
 		}

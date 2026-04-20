@@ -27,9 +27,7 @@ func (Step) Fields() []ent.Field {
 			Default("").
 			Comment("Optional higher-level grouping: source, build, review, package"),
 
-		field.String("timestamp").
-			Optional().
-			Nillable(),
+		field.String("timestamp"),
 
 		field.JSON("metadata", map[string]string{}).
 			Optional(),
