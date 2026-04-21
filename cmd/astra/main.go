@@ -44,8 +44,7 @@ func main() {
 		os.Exit(2)
 	}
 	ctx := context.Background()
-
-	// 3. open DB
+	// open DB
 	db, err := entstore.OpenSQLite("astra.db")
 	if err != nil {
 		log.Fatalf("open db: %v", err)
@@ -108,7 +107,7 @@ func main() {
 			log.Fatalf("save graph: %v", err)
 		}
 
-		log.Println("Graph saved successfully")
+		log.Println("Graph saved successfully to the database")
 		//  validate schema invariants
 		// must(graph.Validate(astra))
 
