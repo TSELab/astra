@@ -40,7 +40,7 @@ type GitParser struct{}
 // at a specific commit in the given repository.
 func MakeArtifactID(repoURL string, commitHash, filePath string) string {
 	repoSlug := getRepoSlug(repoURL)
-	return fmt.Sprintf("artifact:gitfile:%s@%s:%s", repoSlug, commitHash, filePath)
+	return fmt.Sprintf("gitfile:%s@%s:%s", repoSlug, commitHash, filePath)
 }
 
 /*
@@ -49,7 +49,7 @@ Step ID format: step:commit:<host>/<owner>/<repo>@<commit-hash>
 */
 func MakeStepID(repoURL string, commitHash string) string {
 	repoSlug := getRepoSlug(repoURL)
-	return fmt.Sprintf("step:commit:%s@%s", repoSlug, commitHash)
+	return fmt.Sprintf("gitcommit:%s@%s", repoSlug, commitHash)
 }
 
 // MakeCommitArtifactID returns namespaced AStRA artifact ID
@@ -57,7 +57,7 @@ func MakeStepID(repoURL string, commitHash string) string {
 // Commit artifact ID format: artifact:gitcommit:<host>/<owner>/<repo>@<commit-hash>
 func MakeCommitArtifactID(repoURL string, commitHash string) string {
 	repoSlug := getRepoSlug(repoURL)
-	return fmt.Sprintf("artifact:gitcommit:%s@%s", repoSlug, commitHash)
+	return fmt.Sprintf("gitcommit:%s@%s", repoSlug, commitHash)
 }
 
 // getRepoSlug normalizes a Git repository URL into a host/owner/repo slug.
@@ -214,7 +214,7 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 			},
 		},
 		Principal: parser.PrincipalItem{
-			ID:    "principal:" + c.Author.Email,
+			ID:    c.Author.Email,
 			Label: c.Author.Name,
 			Kind:  "principal",
 			Attrs: map[string]string{"email": c.Author.Email},
@@ -296,7 +296,7 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 	}
 
 	rec.Resources = append(rec.Resources, parser.ResourceItem{
-		ID:    "resource:git",
+		ID:    "git",
 		Label: "git",
 		Kind:  "vcs",
 	})
