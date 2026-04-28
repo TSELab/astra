@@ -122,25 +122,72 @@ func ToAstraGraph(m parser.Mapped) graph.AstraGraph {
 	out := graph.AstraGraph{}
 
 	for _, a := range arts {
-		out.Artifacts = append(out.Artifacts, a)
+		out.Artifacts[a.ID] = a
 	}
 	for _, s := range steps {
-		out.Steps = append(out.Steps, s)
+		out.Steps[s.ID] = s
 	}
 	for _, p := range princs {
-		out.Principals = append(out.Principals, p)
+		out.Principals[p.ID] = p
 	}
 	for _, r := range resources {
-		out.Resources = append(out.Resources, r)
+		out.Resources[r.ID] = r
 	}
 	for _, e := range edges {
 		out.Edges = append(out.Edges, e)
 	}
-	// Ensure deterministic, ordering of nodes and edges.
-	sort.Slice(out.Artifacts, func(i, j int) bool { return out.Artifacts[i].ID < out.Artifacts[j].ID })
-	sort.Slice(out.Steps, func(i, j int) bool { return out.Steps[i].ID < out.Steps[j].ID })
-	sort.Slice(out.Principals, func(i, j int) bool { return out.Principals[i].ID < out.Principals[j].ID })
-	sort.Slice(out.Resources, func(i, j int) bool { return out.Resources[i].ID < out.Resources[j].ID })
+
+	return out
+}
+
+// ExportGraph is used for JSON output / deterministic ordering
+type ExportGraph struct {
+	Artifacts  []graph.Artifact  `json:"artifacts"`
+	Steps      []graph.Step      `json:"steps"`
+	Principals []graph.Principal `json:"principals"`
+	Resources  []graph.Resource  `json:"resources"`
+	Edges      []graph.Edge      `json:"edges"`
+}
+
+func ToExport(g graph.AstraGraph) ExportGraph {
+	var out ExportGraph
+
+	// Artifacts
+	for _, a := range g.Artifacts {
+		out.Artifacts = append(out.Artifacts, a)
+	}
+	sort.Slice(out.Artifacts, func(i, j int) bool {
+		return out.Artifacts[i].ID < out.Artifacts[j].ID
+	})
+
+	// Steps
+	for _, s := range g.Steps {
+		out.Steps = append(out.Steps, s)
+	}
+	sort.Slice(out.Steps, func(i, j int) bool {
+		return out.Steps[i].ID < out.Steps[j].ID
+	})
+
+	// Principals
+	for _, p := range g.Principals {
+		out.Principals = append(out.Principals, p)
+	}
+	sort.Slice(out.Principals, func(i, j int) bool {
+		return out.Principals[i].ID < out.Principals[j].ID
+	})
+
+	// Resources
+	for _, r := range g.Resources {
+		out.Resources = append(out.Resources, r)
+	}
+	sort.Slice(out.Resources, func(i, j int) bool {
+		return out.Resources[i].ID < out.Resources[j].ID
+	})
+
+	// Edges
+	for _, e := range g.Edges {
+		out.Edges = append(out.Edges, e)
+	}
 	sort.Slice(out.Edges, func(i, j int) bool {
 		if out.Edges[i].Source != out.Edges[j].Source {
 			return out.Edges[i].Source < out.Edges[j].Source

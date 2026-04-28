@@ -110,16 +110,18 @@ var mapCmd = &cobra.Command{
 		}
 
 		astra := mapper.ToAstraGraph(parsed)
-
+		exported_graph := mapper.ToExport(astra)
 		// save graph to database
 		if err := db.SaveGraph(ctx, astra); err != nil {
 			log.Fatalf("save graph: %v", err)
 		}
-
 		log.Println("Graph saved successfully to the database")
-		if err := writeJSON(out, astra); err != nil {
+
+		if err := writeJSON(out, exported_graph); err != nil {
 			return err
 		}
+		log.Println("Graph saved successfully to the disk")
+
 		fmt.Println("[OK] Mapped ->", out)
 		return nil
 	},
