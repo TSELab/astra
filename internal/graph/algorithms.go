@@ -6,6 +6,8 @@ import (
 	"gonum.org/v1/gonum/graph/topo"
 )
 
+// TopologicalOrder performs a topological sort of the directed graph g returning the 'from' to 'to'
+// sort order. If a topological ordering is not possible, not a DAG error is returned
 func TopologicalOrder(g AstraGraph) ([]string, error) {
 	dg, ids := ToGonum(g)
 

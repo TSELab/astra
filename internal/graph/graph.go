@@ -47,6 +47,7 @@ func ToDOT(g AstraGraph) string {
 	return b.String()
 }
 
+// constructor to generate new AstraGraph
 func NewAstraGraph() AstraGraph {
 	return AstraGraph{
 		Artifacts:  map[string]Artifact{},
@@ -55,28 +56,6 @@ func NewAstraGraph() AstraGraph {
 		Resources:  map[string]Resource{},
 		Edges:      []Edge{},
 	}
-}
-
-func FromExport(e ExportGraph) AstraGraph {
-	g := NewAstraGraph()
-
-	for _, a := range e.Artifacts {
-		g.Artifacts[a.ID] = a
-	}
-	for _, s := range e.Steps {
-		g.Steps[s.ID] = s
-	}
-	for _, p := range e.Principals {
-		g.Principals[p.ID] = p
-	}
-	for _, r := range e.Resources {
-		g.Resources[r.ID] = r
-	}
-	for _, ed := range e.Edges {
-		g.Edges = append(g.Edges, ed)
-	}
-
-	return g
 }
 
 // ExportGraph is used for JSON output / deterministic ordering
@@ -88,6 +67,7 @@ type ExportGraph struct {
 	Edges      []Edge      `json:"edges"`
 }
 
+// ToExport converts AstraGraph to ExportGraph that is used for JSON output / deterministic ordering
 func ToExport(g AstraGraph) ExportGraph {
 	var out ExportGraph
 
@@ -138,6 +118,29 @@ func ToExport(g AstraGraph) ExportGraph {
 	})
 
 	return out
+}
+
+// FromExport convert ExportGraph to AstraGraph, used to visualize/analyze json format graphs
+func FromExport(e ExportGraph) AstraGraph {
+	g := NewAstraGraph()
+
+	for _, a := range e.Artifacts {
+		g.Artifacts[a.ID] = a
+	}
+	for _, s := range e.Steps {
+		g.Steps[s.ID] = s
+	}
+	for _, p := range e.Principals {
+		g.Principals[p.ID] = p
+	}
+	for _, r := range e.Resources {
+		g.Resources[r.ID] = r
+	}
+	for _, ed := range e.Edges {
+		g.Edges = append(g.Edges, ed)
+	}
+
+	return g
 }
 
 //TODO

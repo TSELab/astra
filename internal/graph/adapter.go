@@ -6,17 +6,24 @@ import (
 	"gonum.org/v1/gonum/graph/simple"
 )
 
+// NodeMeta stores metadata about an AStRA node after it is converted
+// into a Gonum node.
 type NodeMeta struct {
 	ID   string
 	Type NodeType
 }
 
+// IDMap keeps the relationship between AStRA string IDs and Gonum int64 IDs.
 type IDMap struct {
 	StringToInt map[string]int64
 	IntToString map[int64]string
 	IntToMeta   map[int64]NodeMeta
 }
 
+// ToGonum converts an AStRA graph into a Gonum directed graph.
+//
+// Gonum nodes use int64 IDs, so this function also returns an IDMap
+// that lets callers translate between AStRA string IDs and Gonum IDs.
 func ToGonum(g AstraGraph) (*simple.DirectedGraph, IDMap) {
 	dg := simple.NewDirectedGraph()
 
@@ -63,6 +70,11 @@ func ToGonum(g AstraGraph) (*simple.DirectedGraph, IDMap) {
 	return dg, ids
 }
 
+// stableIntID converts a string ID into a stable positive int64 ID.
+//
+// This is needed because Gonum nodes are identified by int64 values,
+// while AStRA nodes use string IDs.
+// For the same input, the function returns the same ID every time.
 func stableIntID(s string) int64 {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(s))

@@ -1,6 +1,7 @@
 // internal/graph/helpers.go
 package graph
 
+// AllNodes retrieve a list of all nodes in AstraGraph g
 func (g AstraGraph) AllNodes() []Node {
 	var nodes []Node
 
@@ -20,6 +21,7 @@ func (g AstraGraph) AllNodes() []Node {
 	return nodes
 }
 
+// NodeByID retrieves a node in AstraGraph g using its id, if the id is not found, it returns false
 func (g AstraGraph) NodeByID(id string) (Node, bool) {
 	if n, ok := g.Artifacts[id]; ok {
 		return n, true
