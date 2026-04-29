@@ -51,7 +51,7 @@ func (s *Store) SaveGraph(ctx context.Context, g graph.AstraGraph) (err error) {
 	return nil
 }
 
-func saveArtifacts(ctx context.Context, tx *genent.Tx, items []graph.Artifact) error {
+func saveArtifacts(ctx context.Context, tx *genent.Tx, items map[string]graph.Artifact) error {
 	for _, a := range items {
 		existing, err := tx.Artifact.
 			Query().
@@ -95,7 +95,7 @@ func saveArtifacts(ctx context.Context, tx *genent.Tx, items []graph.Artifact) e
 	return nil
 }
 
-func saveSteps(ctx context.Context, tx *genent.Tx, items []graph.Step) error {
+func saveSteps(ctx context.Context, tx *genent.Tx, items map[string]graph.Step) error {
 	for _, st := range items {
 		existing, err := tx.Step.
 			Query().
@@ -137,7 +137,7 @@ func saveSteps(ctx context.Context, tx *genent.Tx, items []graph.Step) error {
 	return nil
 }
 
-func savePrincipals(ctx context.Context, tx *genent.Tx, items []graph.Principal) error {
+func savePrincipals(ctx context.Context, tx *genent.Tx, items map[string]graph.Principal) error {
 	for _, p := range items {
 		existing, err := tx.Principal.
 			Query().
@@ -177,7 +177,7 @@ func savePrincipals(ctx context.Context, tx *genent.Tx, items []graph.Principal)
 	return nil
 }
 
-func saveResources(ctx context.Context, tx *genent.Tx, items []graph.Resource) error {
+func saveResources(ctx context.Context, tx *genent.Tx, items map[string]graph.Resource) error {
 	for _, r := range items {
 		existing, err := tx.Resource.
 			Query().

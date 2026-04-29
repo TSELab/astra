@@ -53,81 +53,93 @@ func (s *Store) LoadGraph(ctx context.Context, graphID string) (graph.AstraGraph
 	return g, nil
 }
 
-func loadArtifacts(ctx context.Context, client *genent.Client) ([]graph.Artifact, error) {
+func loadArtifacts(ctx context.Context, client *genent.Client) (map[string]graph.Artifact, error) {
+
 	rows, err := client.Artifact.Query().All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query artifacts: %w", err)
 	}
 
-	out := make([]graph.Artifact, 0, len(rows))
+	out := make(map[string]graph.Artifact)
 	for _, a := range rows {
-		out = append(out, graph.Artifact{
+		ar := graph.Artifact{
 			ID:       a.AstraID,
 			Kind:     a.Kind,
 			Name:     a.Name,
 			Version:  a.Version,
 			Hash:     a.Hash,
 			Size:     a.Size,
-			Metadata: a.Metadata,
-		})
+			Metadata: a.Metadata}
+
+		out[a.AstraID] = ar
+
 	}
 	return out, nil
 }
 
-func loadSteps(ctx context.Context, client *genent.Client) ([]graph.Step, error) {
+func loadSteps(ctx context.Context, client *genent.Client) (map[string]graph.Step, error) {
+
 	rows, err := client.Step.Query().All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query steps: %w", err)
 	}
 
-	out := make([]graph.Step, 0, len(rows))
-	for _, st := range rows {
-		out = append(out, graph.Step{
-			ID:          st.AstraID,
-			Command:     st.Command,
-			Timestamp:   st.Timestamp,
-			Arch:        st.Arch,
-			Environment: st.Environment,
-			Metadata:    st.Metadata,
-		})
+	out := make(map[string]graph.Step)
+
+	for _, s := range rows {
+		st := graph.Step{
+			ID:          s.AstraID,
+			Command:     s.Command,
+			Timestamp:   s.Timestamp,
+			Arch:        s.Arch,
+			Environment: s.Environment,
+			Metadata:    s.Metadata}
+
+		out[s.AstraID] = st
+
 	}
 	return out, nil
 }
 
-func loadPrincipals(ctx context.Context, client *genent.Client) ([]graph.Principal, error) {
+func loadPrincipals(ctx context.Context, client *genent.Client) (map[string]graph.Principal, error) {
 	rows, err := client.Principal.Query().All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query principals: %w", err)
 	}
 
-	out := make([]graph.Principal, 0, len(rows))
+	out := make(map[string]graph.Principal)
 	for _, p := range rows {
-		out = append(out, graph.Principal{
+		pr := graph.Principal{
 			ID:       p.AstraID,
 			Name:     p.Name,
 			Trust:    p.Trust,
 			Builder:  p.Builder,
 			Metadata: p.Metadata,
-		})
+		}
+		out[p.AstraID] = pr
+
 	}
 	return out, nil
 }
 
-func loadResources(ctx context.Context, client *genent.Client) ([]graph.Resource, error) {
+func loadResources(ctx context.Context, client *genent.Client) (map[string]graph.Resource, error) {
+
 	rows, err := client.Resource.Query().All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query resources: %w", err)
 	}
 
-	out := make([]graph.Resource, 0, len(rows))
+	out := make(map[string]graph.Resource)
 	for _, r := range rows {
-		out = append(out, graph.Resource{
+		rs := graph.Resource{
 			ID:       r.AstraID,
 			Type:     r.Type,
 			URI:      r.URI,
 			Format:   r.Format,
 			Metadata: r.Metadata,
-		})
+		}
+		out[r.AstraID] = rs
+
 	}
 	return out, nil
 }

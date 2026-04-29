@@ -110,7 +110,7 @@ var mapCmd = &cobra.Command{
 		}
 
 		astra := mapper.ToAstraGraph(parsed)
-		exported_graph := mapper.ToExport(astra)
+		exported_graph := graph.ToExport(astra)
 		// save graph to database
 		if err := db.SaveGraph(ctx, astra); err != nil {
 			log.Fatalf("save graph: %v", err)
@@ -131,17 +131,24 @@ var vizCmd = &cobra.Command{
 	Use:   "viz",
 	Short: "Render an AStRA graph as DOT",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		in, _ := cmd.Flags().GetString("input")
+		//in, _ := cmd.Flags().GetString("input")
 		out, _ := cmd.Flags().GetString("output")
 
-		graphJSON, err := os.ReadFile(in)
-		if err != nil {
-			return err
-		}
-		var g graph.AstraGraph
-		if err := json.Unmarshal(graphJSON, &g); err != nil {
-			return err
-		}
+		//to viz from json export
+		/*
+			graphJSON, err := os.ReadFile(in)
+			if err != nil {
+				return err
+			}
+
+			var eg graph.ExportGraph
+			if err := json.Unmarshal(graphJSON, &eg); err != nil {
+				return err
+			}
+
+			g := graph.FromExport(eg)
+			dot := graph.ToDOT(g)
+		*/
 		//load graph from database
 		loaded, err := db.LoadGraph(ctx, "")
 		if err != nil {
