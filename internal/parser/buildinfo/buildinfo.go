@@ -30,11 +30,11 @@ import (
 
 type BuildinfoParser struct{}
 
-func (p *BuildinfoParser) Parse(r io.Reader) (parser.Mapped, error) {
+func (p *BuildinfoParser) Parse(r io.Reader) (parser.Evidence, error) {
 	return parseBuildinfo(r)
 }
 
-func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
+func parseBuildinfo(r io.Reader) (parser.Evidence, error) {
 	scanner := bufio.NewScanner(r)
 
 	var source, version, buildDate, buildOrigin, buildArch string
@@ -89,7 +89,7 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 				pkgName := strings.SplitN(filename, "_", 2)[0]
 				purl := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=%s", pkgName, version, buildArch)
 				outputItems = append(outputItems, parser.ArtifactItem{
-					ID:    purl,
+					ID:    fmt.Sprintf("artifact:%s", purl),
 					Label: filename,
 					Kind:  "deb",
 					Attrs: map[string]string{
@@ -110,7 +110,7 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 				if !seenDeps[purl] {
 					seenDeps[purl] = true
 					depItems = append(depItems, parser.ResourceItem{
-						ID:    purl,
+						ID:    fmt.Sprintf("resource:%s", purl),
 						Label: pkg,
 						Kind:  "deb",
 						Attrs: map[string]string{
@@ -124,7 +124,7 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return parser.Mapped{}, err
+		return parser.Evidence{}, err
 	}
 
 	// Extract PGP signing key ID from the signature block.
@@ -144,7 +144,7 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 	// per the PURL deb spec convention. The buildinfo version is used.
 	tarballPURL := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=source", source, upstreamVersion)
 	tarballResource := parser.ResourceItem{
-		ID:    tarballPURL,
+		ID:    fmt.Sprintf("resource:%s", tarballPURL),
 		Label: tarball,
 		Kind:  "tarball",
 		Attrs: map[string]string{
@@ -180,9 +180,9 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 		Resources:    append([]parser.ResourceItem{tarballResource}, depItems...),
 	}
 
-	return parser.Mapped{
+	return parser.Evidence{
 		Source:       "buildinfo",
 		NormalizedAt: time.Now().Unix(),
-		Mapped:       []parser.Record{rec},
+		Records:      []parser.Record{rec},
 	}, nil
 }

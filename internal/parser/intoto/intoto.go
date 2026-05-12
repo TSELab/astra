@@ -9,13 +9,13 @@ import (
 
 type InTotoParser struct{}
 
-func (p *InTotoParser) Parse(r io.Reader) (parser.Mapped, error) {
+func (p *InTotoParser) Parse(r io.Reader) (parser.Evidence, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return parser.Mapped{}, err
+		return parser.Evidence{}, err
 	}
 	print(b)
-	n := parser.Mapped{Source: "in-toto", NormalizedAt: time.Now().Unix()}
+	n := parser.Evidence{Source: "in-toto", NormalizedAt: time.Now().Unix()}
 
 	return n, nil
 }

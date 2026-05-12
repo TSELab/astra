@@ -12,7 +12,7 @@ import (
 //	resource  --carries_out--> step
 //	step  --consumes--> artifact
 //	step      --produces--> artifact
-func ToAstraGraph(m parser.Mapped) graph.AstraGraph {
+func ToAstraGraph(m parser.Evidence) graph.AstraGraph {
 	out := graph.NewAstraGraph()
 
 	addEdge := func(src, dst, rel string, md map[string]string) {
@@ -29,7 +29,7 @@ func ToAstraGraph(m parser.Mapped) graph.AstraGraph {
 		_ = md
 	}
 
-	for _, rec := range m.Mapped {
+	for _, rec := range m.Records {
 		if rec.Principal.ID != "" {
 			if _, ok := out.Principals[rec.Principal.ID]; !ok {
 				md := cloneMap(rec.Principal.Attrs)
@@ -90,7 +90,7 @@ func ToAstraGraph(m parser.Mapped) graph.AstraGraph {
 				out.Artifacts[it.ID] = normalizeArtifact(it)
 			}
 
-			addEdge(rec.Step.ID, it.ID, "consumes", nil)
+			addEdge(it.ID, rec.Step.ID, "consumes", nil)
 		}
 
 		for _, it := range rec.ArtifactsOut {

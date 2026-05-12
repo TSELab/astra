@@ -104,7 +104,7 @@ var mapCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		var parsed parser.Mapped
+		var parsed parser.Evidence
 		if err := json.Unmarshal(b, &parsed); err != nil {
 			return err
 		}

@@ -36,20 +36,23 @@ import (
 // GitParser implements parser.Parser for Git repositories.
 type GitParser struct{}
 
+// TODO IDs should be moved out from git parser
 // MakeArtifactID returns a namespaced AStRA artifact ID for a file
 // at a specific commit in the given repository.
-func MakeArtifactID(repoURL string, commitHash, filePath string) string {
+// Artifact ID format: artifact:gitfile:<host>/<owner>/<repo>@<commit-hash>:<filePath>
+
+func MakeFileArtifactID(repoURL string, commitHash, filePath string) string {
 	repoSlug := getRepoSlug(repoURL)
-	return fmt.Sprintf("gitfile:%s@%s:%s", repoSlug, commitHash, filePath)
+	return fmt.Sprintf("artifact:gitfile:%s@%s:%s", repoSlug, commitHash, filePath)
 }
 
 /*
-MakeStepID returns namespaced AStRA Step ID for a Git commit.
-Step ID format: step:commit:<host>/<owner>/<repo>@<commit-hash>
+MakeCommitStepID returns namespaced AStRA Step ID for a Git commit.
+Step ID format: step:gitcommit:<host>/<owner>/<repo>@<commit-hash>
 */
-func MakeStepID(repoURL string, commitHash string) string {
+func MakeCommitStepID(repoURL string, commitHash string) string {
 	repoSlug := getRepoSlug(repoURL)
-	return fmt.Sprintf("gitcommit:%s@%s", repoSlug, commitHash)
+	return fmt.Sprintf("step:gitcommit:%s@%s", repoSlug, commitHash)
 }
 
 // MakeCommitArtifactID returns namespaced AStRA artifact ID
@@ -57,7 +60,7 @@ func MakeStepID(repoURL string, commitHash string) string {
 // Commit artifact ID format: artifact:gitcommit:<host>/<owner>/<repo>@<commit-hash>
 func MakeCommitArtifactID(repoURL string, commitHash string) string {
 	repoSlug := getRepoSlug(repoURL)
-	return fmt.Sprintf("gitcommit:%s@%s", repoSlug, commitHash)
+	return fmt.Sprintf("artifact:gitcommit:%s@%s", repoSlug, commitHash)
 }
 
 // getRepoSlug normalizes a Git repository URL into a host/owner/repo slug.
@@ -205,7 +208,7 @@ func GetCommitIO(repo *git.Repository, hash string) (inputs []*object.File, outp
 func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (parser.Record, error) {
 	rec := parser.Record{
 		Step: parser.StepItem{
-			ID:    MakeStepID(remoteURL, c.Hash.String()),
+			ID:    MakeCommitStepID(remoteURL, c.Hash.String()),
 			Label: "Commit",
 			Kind:  "step",
 			Attrs: map[string]string{
@@ -214,7 +217,7 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 			},
 		},
 		Principal: parser.PrincipalItem{
-			ID:    c.Author.Email,
+			ID:    fmt.Sprintf("principal:%s", c.Author.Email),
 			Label: c.Author.Name,
 			Kind:  "principal",
 			Attrs: map[string]string{"email": c.Author.Email},
@@ -255,7 +258,7 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 			continue
 		}
 		rec.ArtifactsIn = append(rec.ArtifactsIn, parser.ArtifactItem{
-			ID:    MakeArtifactID(remoteURL, parentHash, f.Name),
+			ID:    MakeFileArtifactID(remoteURL, parentHash, f.Name),
 			Label: f.Name,
 			Kind:  "git-file",
 			Attrs: map[string]string{
@@ -284,7 +287,7 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 			continue
 		}
 		rec.ArtifactsOut = append(rec.ArtifactsOut, parser.ArtifactItem{
-			ID:    MakeArtifactID(remoteURL, c.Hash.String(), f.Name),
+			ID:    MakeFileArtifactID(remoteURL, c.Hash.String(), f.Name),
 			Label: f.Name,
 			Kind:  "git-file",
 			Attrs: map[string]string{
@@ -296,7 +299,7 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 	}
 
 	rec.Resources = append(rec.Resources, parser.ResourceItem{
-		ID:    "git",
+		ID:    "resource:git",
 		Label: "git",
 		Kind:  "vcs",
 	})
@@ -310,10 +313,10 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 // Each commit is represented as a step, authors as principals, Git as a resource,
 // parent commits as input artifacts, and the commit itself plus changed files
 // as output artifacts.
-func (p *GitParser) Parse(r io.Reader) (parser.Mapped, error) {
+func (p *GitParser) Parse(r io.Reader) (parser.Evidence, error) {
 	urlBytes, err := io.ReadAll(r)
 	if err != nil {
-		return parser.Mapped{}, err
+		return parser.Evidence{}, err
 	}
 	repoURL := strings.TrimSpace(string(urlBytes))
 	fmt.Println("Cloning:", repoURL)
@@ -323,30 +326,30 @@ func (p *GitParser) Parse(r io.Reader) (parser.Mapped, error) {
 		Progress: os.Stdout,
 	})
 	if err != nil {
-		return parser.Mapped{}, fmt.Errorf("clone error: %w", err)
+		return parser.Evidence{}, fmt.Errorf("clone error: %w", err)
 	}
 
 	rem, err := repo.Remote("origin")
 	if err != nil {
-		return parser.Mapped{}, fmt.Errorf("remote error: %w", err)
+		return parser.Evidence{}, fmt.Errorf("remote error: %w", err)
 	}
 	remoteURLs := rem.Config().URLs
 	if len(remoteURLs) == 0 {
-		return parser.Mapped{}, fmt.Errorf("origin remote has no URLs")
+		return parser.Evidence{}, fmt.Errorf("origin remote has no URLs")
 	}
 	remoteURL := remoteURLs[0]
 
 	ref, err := repo.Head()
 	if err != nil {
-		return parser.Mapped{}, fmt.Errorf("head error: %w", err)
+		return parser.Evidence{}, fmt.Errorf("head error: %w", err)
 	}
 
 	commits, err := repo.Log(&git.LogOptions{From: ref.Hash()})
 	if err != nil {
-		return parser.Mapped{}, fmt.Errorf("log error: %w", err)
+		return parser.Evidence{}, fmt.Errorf("log error: %w", err)
 	}
 
-	out := parser.Mapped{
+	out := parser.Evidence{
 		Source:       "go-git",
 		NormalizedAt: time.Now().Unix(),
 	}
@@ -356,11 +359,11 @@ func (p *GitParser) Parse(r io.Reader) (parser.Mapped, error) {
 		if err != nil {
 			return err
 		}
-		out.Mapped = append(out.Mapped, rec)
+		out.Records = append(out.Records, rec)
 		return nil
 	})
 	if err != nil {
-		return parser.Mapped{}, err
+		return parser.Evidence{}, err
 	}
 
 	return out, nil

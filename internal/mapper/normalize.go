@@ -87,7 +87,7 @@ func normalizeStepCommand(md map[string]string) string {
 	return ""
 }
 
-func normalizeStepEnviroment(md map[string]string) string {
+func normalizeStepEnvironment(md map[string]string) string {
 	// Keep stable, queryable values or leave empty.
 	if v, ok := md["enviroment"]; ok && strings.TrimSpace(v) != "" {
 		return v
@@ -97,7 +97,7 @@ func normalizeStepEnviroment(md map[string]string) string {
 
 func normalizeStepArch(md map[string]string) string {
 
-	// Keep it stable; or leave empty
+	// Keep it stable; or leave empty\
 	if v, ok := md["architecture"]; ok && strings.TrimSpace(v) != "" {
 		return v
 	}

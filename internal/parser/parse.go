@@ -4,7 +4,7 @@ import "io"
 
 // Parser is the interface every parser must satisfy
 type Parser interface {
-	Parse(r io.Reader) (Mapped, error)
+	Parse(r io.Reader) (Evidence, error)
 }
 
 type StepItem struct {
@@ -44,9 +44,9 @@ type Record struct {
 	Resources    []ResourceItem `json:"resources"`
 }
 
-// Mapped is the top-level output of a parser: Records plus metadata.
-type Mapped struct {
-	Mapped       []Record `json:"mapped"`
+// Evidence is the top-level output of a parser: Records plus metadata.
+type Evidence struct {
+	Records      []Record `json:"records"`
 	Source       string   `json:"source"`
 	NormalizedAt int64    `json:"normalized_at"`
 }
