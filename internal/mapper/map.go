@@ -12,55 +12,69 @@ import (
 //	resource  --carries_out--> step
 //	step  --consumes--> artifact
 //	step      --produces--> artifact
-func ToAstraGraph(m parser.Evidence) graph.AstraGraph {
+func ToAstraGraph(m parser.Mapped) graph.AstraGraph {
 	out := graph.NewAstraGraph()
 
+	edgeSet := map[string]bool{}
 	addEdge := func(src, dst, rel string, md map[string]string) {
 		if src == "" || dst == "" || rel == "" {
 			return
 		}
-
+		k := src + "|" + rel + "|" + dst
+		if edgeSet[k] {
+			return
+		}
+		edgeSet[k] = true
 		out.Edges = append(out.Edges, graph.Edge{
 			Source:   src,
 			Target:   dst,
 			Relation: rel,
 		})
-
 		_ = md
 	}
 
-	for _, rec := range m.Records {
+	for _, rec := range m.Mapped {
 		if rec.Principal.ID != "" {
-			if _, ok := out.Principals[rec.Principal.ID]; !ok {
-				md := cloneMap(rec.Principal.Attrs)
+			p := rec.Principal
+			completeness := p.Completeness
+			if completeness == "" {
+				completeness = graph.Complete
+			}
+			if existing, ok := out.Principals[p.ID]; !ok || graph.CompletenessRank(completeness) > graph.CompletenessRank(existing.Completeness) {
+				md := cloneMap(p.Attrs)
 				if md == nil {
 					md = map[string]string{}
 				}
-
-				out.Principals[rec.Principal.ID] = graph.Principal{
-					ID:       rec.Principal.ID,
-					Trust:    "unknown",
-					Builder:  "",
-					Name:     rec.Principal.Label,
-					Metadata: md,
+				out.Principals[p.ID] = graph.Principal{
+					ID:           p.ID,
+					Trust:        "unknown",
+					Builder:      "",
+					Name:         p.Label,
+					Metadata:     md,
+					Completeness: completeness,
 				}
 			}
 		}
 
 		if rec.Step.ID != "" {
-			if _, ok := out.Steps[rec.Step.ID]; !ok {
-				md := cloneMap(rec.Step.Attrs)
+			s := rec.Step
+			completeness := s.Completeness
+			if completeness == "" {
+				completeness = graph.Complete
+			}
+			if existing, ok := out.Steps[s.ID]; !ok || graph.CompletenessRank(completeness) > graph.CompletenessRank(existing.Completeness) {
+				md := cloneMap(s.Attrs)
 				if md == nil {
 					md = map[string]string{}
 				}
-
-				out.Steps[rec.Step.ID] = graph.Step{
-					ID:          rec.Step.ID,
-					Command:     normalizeStepCommand(md),
-					Timestamp:   normalizeTimestamp(md),
-					Arch:        normalizeStepArch(md),
-					Environment: map[string]string{},
-					Metadata:    md,
+				out.Steps[s.ID] = graph.Step{
+					ID:           s.ID,
+					Command:      normalizeStepCommand(md),
+					Timestamp:    normalizeTimestamp(md),
+					Arch:         normalizeStepArch(md),
+					Environment:  map[string]string{},
+					Metadata:     md,
+					Completeness: completeness,
 				}
 			}
 		}
@@ -69,14 +83,18 @@ func ToAstraGraph(m parser.Evidence) graph.AstraGraph {
 			if r.ID == "" {
 				continue
 			}
-
-			if _, ok := out.Resources[r.ID]; !ok {
+			completeness := r.Completeness
+			if completeness == "" {
+				completeness = graph.Complete
+			}
+			if existing, ok := out.Resources[r.ID]; !ok || graph.CompletenessRank(completeness) > graph.CompletenessRank(existing.Completeness) {
 				out.Resources[r.ID] = graph.Resource{
-					ID:       r.ID,
-					Type:     normalizeResourceType(r),
-					URI:      normalizeResourceURI(r),
-					Format:   normalizeResourceFormat(r),
-					Metadata: cloneMap(r.Attrs),
+					ID:           r.ID,
+					Type:         normalizeResourceType(r),
+					URI:          normalizeResourceURI(r),
+					Format:       normalizeResourceFormat(r),
+					Metadata:     cloneMap(r.Attrs),
+					Completeness: completeness,
 				}
 			}
 		}

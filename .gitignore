@@ -1,6 +1,6 @@
 # compiled binaries
-astra
-prototype
+/astra
+/prototype
 
 # databases
 *.db

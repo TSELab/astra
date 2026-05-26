@@ -30,6 +30,10 @@ func (Resource) Fields() []ent.Field {
 		field.JSON("metadata", map[string]string{}).
 			Optional(),
 
+		field.Enum("completeness").
+			Values("complete", "incomplete").
+			Default("complete"),
+
 		field.Time("created_at").
 			Default(time.Now),
 	}

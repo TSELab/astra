@@ -4,35 +4,39 @@ import "io"
 
 // Parser is the interface every parser must satisfy
 type Parser interface {
-	Parse(r io.Reader) (Evidence, error)
+	Parse(r io.Reader) (Mapped, error)
 }
 
 type StepItem struct {
-	ID    string            `json:"id"`
-	Label string            `json:"label"`
-	Kind  string            `json:"kind"`
-	Attrs map[string]string `json:"attrs"`
+	ID           string            `json:"id"`
+	Label        string            `json:"label"`
+	Kind         string            `json:"kind"`
+	Attrs        map[string]string `json:"attrs"`
+	Completeness string            `json:"completeness,omitempty"`
 }
 
 type PrincipalItem struct {
-	ID    string            `json:"id"`
-	Label string            `json:"label"`
-	Kind  string            `json:"kind"`
-	Attrs map[string]string `json:"attrs"`
+	ID           string            `json:"id"`
+	Label        string            `json:"label"`
+	Kind         string            `json:"kind"`
+	Attrs        map[string]string `json:"attrs"`
+	Completeness string            `json:"completeness,omitempty"`
 }
 
 type ArtifactItem struct {
-	ID    string            `json:"id"`
-	Label string            `json:"label"`
-	Kind  string            `json:"kind"`
-	Attrs map[string]string `json:"attrs"`
+	ID           string            `json:"id"`
+	Label        string            `json:"label"`
+	Kind         string            `json:"kind"`
+	Attrs        map[string]string `json:"attrs"`
+	Completeness string            `json:"completeness,omitempty"`
 }
 
 type ResourceItem struct {
-	ID    string            `json:"id"`
-	Label string            `json:"label"`
-	Kind  string            `json:"kind"`
-	Attrs map[string]string `json:"attrs"`
+	ID           string            `json:"id"`
+	Label        string            `json:"label"`
+	Kind         string            `json:"kind"`
+	Attrs        map[string]string `json:"attrs"`
+	Completeness string            `json:"completeness,omitempty"`
 }
 
 // Record holds one unit of parsed provenance
@@ -44,9 +48,9 @@ type Record struct {
 	Resources    []ResourceItem `json:"resources"`
 }
 
-// Evidence is the top-level output of a parser: Records plus metadata.
-type Evidence struct {
-	Records      []Record `json:"records"`
+// Mapped is the top-level output of a parser: Records plus metadata.
+type Mapped struct {
+	Mapped       []Record `json:"mapped"`
 	Source       string   `json:"source"`
 	NormalizedAt int64    `json:"normalized_at"`
 }

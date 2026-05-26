@@ -143,6 +143,56 @@ func FromExport(e ExportGraph) AstraGraph {
 	return g
 }
 
+// CompletenessRank returns a numeric rank for ordering completeness states.
+// complete(1) outranks incomplete(0).
+func CompletenessRank(c string) int {
+	if c == Complete {
+		return 1
+	}
+	return 0
+}
+
+// Merge combines two AstraGraph structs into one.
+// Nodes are merged by ID with completeness-aware upgrade:
+// an incoming node replaces a stored node only when it is more complete.
+// Edges are deduplicated by source|relation|target.
+func Merge(a, b AstraGraph) AstraGraph {
+	for id, v := range b.Artifacts {
+		if existing, ok := a.Artifacts[id]; !ok || CompletenessRank(v.Completeness) > CompletenessRank(existing.Completeness) {
+			a.Artifacts[id] = v
+		}
+	}
+	for id, v := range b.Steps {
+		if existing, ok := a.Steps[id]; !ok || CompletenessRank(v.Completeness) > CompletenessRank(existing.Completeness) {
+			a.Steps[id] = v
+		}
+	}
+	for id, v := range b.Resources {
+		if existing, ok := a.Resources[id]; !ok || CompletenessRank(v.Completeness) > CompletenessRank(existing.Completeness) {
+			a.Resources[id] = v
+		}
+	}
+	for id, v := range b.Principals {
+		if existing, ok := a.Principals[id]; !ok || CompletenessRank(v.Completeness) > CompletenessRank(existing.Completeness) {
+			a.Principals[id] = v
+		}
+	}
+
+	seen := map[string]bool{}
+	for _, e := range a.Edges {
+		seen[e.Source+"|"+e.Relation+"|"+e.Target] = true
+	}
+	for _, e := range b.Edges {
+		k := e.Source + "|" + e.Relation + "|" + e.Target
+		if !seen[k] {
+			seen[k] = true
+			a.Edges = append(a.Edges, e)
+		}
+	}
+
+	return a
+}
+
 //TODO
 /*
 Validates DAG properties
