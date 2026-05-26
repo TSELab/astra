@@ -365,9 +365,8 @@ func init() {
 	mapCmd.MarkFlagRequired("input")
 	mapCmd.MarkFlagRequired("output")
 
-	vizCmd.Flags().StringP("input", "i", "", "input graph JSON")
+	vizCmd.Flags().StringP("input", "i", "", "input graph JSON (unused; graph is loaded from DB)")
 	vizCmd.Flags().StringP("output", "o", "graph.dot", "output DOT file")
-	vizCmd.MarkFlagRequired("input")
 
 	enrichLinkCmd.Flags().StringP("manifest", "m", "", "TSV manifest (columns: package, version, git_url, git_tag)")
 	enrichLinkCmd.MarkFlagRequired("manifest")
