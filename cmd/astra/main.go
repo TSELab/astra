@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -212,14 +213,13 @@ var ingestBuildinfoCmd = &cobra.Command{
 }
 
 var ingestGitCmd = &cobra.Command{
-	Use:   "git <repo-url> <current-tag>",
-	Short: "Parse and ingest commits between tags from a git repo",
-	Args:  cobra.ExactArgs(2),
+	Use:   "git <repo-url>",
+	Short: "Parse and ingest commits up to HEAD (or the latest tag) from a git repo",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		repoURL, currentTag := args[0], args[1]
-		prevTag, _ := cmd.Flags().GetString("prev-tag")
+		repoURL := args[0]
 
-		mapped, err := (&gitparser.GitParser{}).ParseTagRange(repoURL, currentTag, prevTag)
+		mapped, err := (&gitparser.GitParser{}).ParseTagRange(repoURL, "", "")
 		if err != nil {
 			return fmt.Errorf("parse git: %w", err)
 		}
@@ -228,9 +228,124 @@ var ingestGitCmd = &cobra.Command{
 		if err := db.SaveGraph(ctx, g); err != nil {
 			return fmt.Errorf("save: %w", err)
 		}
-		fmt.Println("[OK] Ingested git", repoURL, "@", currentTag)
+		fmt.Println("[OK] Ingested git", repoURL)
 		return nil
 	},
+}
+
+var enrichCmd = &cobra.Command{
+	Use:   "enrich",
+	Short: "Enrich the graph with external data",
+}
+
+var enrichLinkCmd = &cobra.Command{
+	Use:   "link",
+	Short: "Create sourced_from edges from an enrichment manifest",
+	RunE:  runEnrichLink,
+}
+
+func stripEpoch(ver string) string {
+	if i := strings.Index(ver, ":"); i >= 0 {
+		return ver[i+1:]
+	}
+	return ver
+}
+
+// runEnrichLink reads a TSV manifest (columns: package, version, git_url, git_tag)
+// and writes sourced_from edges from each source tarball Resource to the
+// corresponding git commit Artifact. Repos are cloned once per unique git_url.
+func runEnrichLink(cmd *cobra.Command, args []string) error {
+	manifest, _ := cmd.Flags().GetString("manifest")
+	f, err := os.Open(manifest)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	type row struct{ pkg, ver, gitURL, tag string }
+	var rows []row
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) < 3 {
+			continue
+		}
+		r := row{pkg: parts[0], ver: parts[1], gitURL: parts[2]}
+		if len(parts) >= 4 {
+			r.tag = strings.TrimSpace(parts[3])
+		}
+		rows = append(rows, r)
+	}
+	if err := sc.Err(); err != nil {
+		return err
+	}
+
+	byURL := map[string][]row{}
+	for _, r := range rows {
+		byURL[r.gitURL] = append(byURL[r.gitURL], r)
+	}
+
+	var linked, skipped int
+	for gitURL, group := range byURL {
+		repo, err := gitparser.CloneRepo(gitURL)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: clone %s: %v\n", gitURL, err)
+			skipped += len(group)
+			continue
+		}
+
+		for _, r := range group {
+			upstreamVer := strings.SplitN(stripEpoch(r.ver), "-", 2)[0]
+			sourcePURL := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=source", r.pkg, upstreamVer)
+
+			hash, err := gitparser.TagHash(repo, r.tag)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: tag %q not in %s: %v\n", r.tag, gitURL, err)
+				skipped++
+				continue
+			}
+			commitID := gitparser.MakeCommitArtifactID(gitURL, hash)
+
+			resExists, err := db.ResourceExists(ctx, sourcePURL)
+			if err != nil {
+				return fmt.Errorf("check resource: %w", err)
+			}
+			if !resExists {
+				fmt.Fprintf(os.Stderr, "warning: resource %q not in graph, skipping\n", sourcePURL)
+				skipped++
+				continue
+			}
+
+			artExists, err := db.ArtifactExists(ctx, commitID)
+			if err != nil {
+				return fmt.Errorf("check artifact: %w", err)
+			}
+			if !artExists {
+				mapped, err := gitparser.ParseTagRangeFromRepo(repo, gitURL, r.tag, "")
+				if err != nil {
+					return fmt.Errorf("parse tag range: %w", err)
+				}
+				g := mapper.ToAstraGraph(mapped)
+				if err := db.SaveGraph(ctx, g); err != nil {
+					return fmt.Errorf("save git graph: %w", err)
+				}
+			}
+
+			var eg graph.AstraGraph
+			eg.Edges = []graph.Edge{{Source: sourcePURL, Target: commitID, Relation: "sourced_from"}}
+			if err := db.SaveGraph(ctx, eg); err != nil {
+				return fmt.Errorf("save edge: %w", err)
+			}
+			linked++
+		}
+	}
+
+	fmt.Printf("[OK] enrich link: %d edges written, %d skipped\n", linked, skipped)
+	return nil
 }
 
 var rootCmd = &cobra.Command{
@@ -254,10 +369,12 @@ func init() {
 	vizCmd.Flags().StringP("output", "o", "graph.dot", "output DOT file")
 	vizCmd.MarkFlagRequired("input")
 
-	ingestGitCmd.Flags().String("prev-tag", "", "previous release tag (auto-discovered if omitted)")
+	enrichLinkCmd.Flags().StringP("manifest", "m", "", "TSV manifest (columns: package, version, git_url, git_tag)")
+	enrichLinkCmd.MarkFlagRequired("manifest")
+	enrichCmd.AddCommand(enrichLinkCmd)
 	ingestCmd.AddCommand(ingestBuildinfoCmd, ingestGitCmd)
 
-	rootCmd.AddCommand(parseCmd, mapCmd, vizCmd, initCmd, ingestCmd)
+	rootCmd.AddCommand(parseCmd, mapCmd, vizCmd, initCmd, ingestCmd, enrichCmd)
 }
 
 func main() {

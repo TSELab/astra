@@ -35,6 +35,13 @@ func (p *BuildinfoParser) Parse(r io.Reader) (parser.Mapped, error) {
 	return parseBuildinfo(r)
 }
 
+func stripEpoch(ver string) string {
+	if i := strings.Index(ver, ":"); i >= 0 {
+		return ver[i+1:]
+	}
+	return ver
+}
+
 func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
@@ -153,7 +160,7 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 		}
 	}
 
-	upstreamVersion := strings.SplitN(version, "-", 2)[0]
+	upstreamVersion := strings.SplitN(stripEpoch(version), "-", 2)[0]
 	tarball := fmt.Sprintf("%s_%s.orig.tar.xz", source, upstreamVersion)
 	// Source tarball uses ?arch=source to distinguish it from installable binary packages
 	// per the PURL deb spec convention. The buildinfo version is used.

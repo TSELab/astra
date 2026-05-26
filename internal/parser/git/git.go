@@ -378,35 +378,91 @@ func PrevTag(repo *git.Repository, currentTag string) (string, error) {
 	return bestTag, nil
 }
 
-// ParseTagRange clones repoURL and walks commits from currentTag back to (but
-// not including) prevTag. If prevTag is empty it is auto-discovered via
-// PrevTag; if there is no earlier tag, history is walked all the way to the
-// root commit.
-//
-// Each walked commit is emitted as a complete Step + Artifacts. The commit at
-// prevTag (the boundary) is emitted as a single incomplete Artifact so the
-// graph records where exploration stopped.
-func (p *GitParser) ParseTagRange(repoURL, currentTag, prevTag string) (parser.Mapped, error) {
+// TagHash returns the commit hash string for the given tag name.
+func TagHash(repo *git.Repository, tagName string) (string, error) {
+	c, err := resolveTagCommit(repo, tagName)
+	if err != nil {
+		return "", err
+	}
+	return c.Hash.String(), nil
+}
+
+// LatestTag finds the tag whose commit has the highest committer timestamp.
+// Returns ("", nil) if the repo has no tags.
+func LatestTag(repo *git.Repository) (string, error) {
+	tagsIter, err := repo.Tags()
+	if err != nil {
+		return "", fmt.Errorf("list tags: %w", err)
+	}
+	defer tagsIter.Close()
+
+	var bestTag string
+	var bestTime time.Time
+
+	_ = tagsIter.ForEach(func(ref *plumbing.Reference) error {
+		name := ref.Name().Short()
+		commit, err := resolveTagCommit(repo, name)
+		if err != nil {
+			return nil
+		}
+		t := commit.Committer.When
+		if bestTag == "" || t.After(bestTime) {
+			bestTag = name
+			bestTime = t
+		}
+		return nil
+	})
+	return bestTag, nil
+}
+
+// CloneRepo clones repoURL into memory with all tags fetched.
+func CloneRepo(repoURL string) (*git.Repository, error) {
 	fmt.Println("Cloning:", repoURL)
-	repo, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+	return git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:      repoURL,
 		Tags:     git.AllTags,
 		Progress: os.Stdout,
 	})
-	if err != nil {
-		return parser.Mapped{}, fmt.Errorf("clone %s: %w", repoURL, err)
-	}
+}
 
-	if prevTag == "" {
-		prevTag, err = PrevTag(repo, currentTag)
+// ParseTagRangeFromRepo walks commits from currentTag back to (but not including)
+// prevTag using an already-cloned repo. If currentTag is empty, HEAD is used and
+// prevTag defaults to the latest tag. If prevTag is empty it is auto-discovered
+// via PrevTag.
+//
+// Each walked commit is emitted as a complete Step + Artifacts. The commit at
+// prevTag (the boundary) is emitted as a single incomplete Artifact so the
+// graph records where exploration stopped.
+func ParseTagRangeFromRepo(repo *git.Repository, repoURL, currentTag, prevTag string) (parser.Mapped, error) {
+	var headCommit *object.Commit
+	var err error
+
+	if currentTag == "" {
+		ref, err := repo.Head()
 		if err != nil {
-			return parser.Mapped{}, fmt.Errorf("find prev tag: %w", err)
+			return parser.Mapped{}, fmt.Errorf("head: %w", err)
 		}
-	}
-
-	headCommit, err := resolveTagCommit(repo, currentTag)
-	if err != nil {
-		return parser.Mapped{}, fmt.Errorf("resolve tag %q: %w", currentTag, err)
+		headCommit, err = repo.CommitObject(ref.Hash())
+		if err != nil {
+			return parser.Mapped{}, fmt.Errorf("resolve HEAD commit: %w", err)
+		}
+		if prevTag == "" {
+			prevTag, err = LatestTag(repo)
+			if err != nil {
+				return parser.Mapped{}, fmt.Errorf("find latest tag: %w", err)
+			}
+		}
+	} else {
+		headCommit, err = resolveTagCommit(repo, currentTag)
+		if err != nil {
+			return parser.Mapped{}, fmt.Errorf("resolve tag %q: %w", currentTag, err)
+		}
+		if prevTag == "" {
+			prevTag, err = PrevTag(repo, currentTag)
+			if err != nil {
+				return parser.Mapped{}, fmt.Errorf("find prev tag: %w", err)
+			}
+		}
 	}
 
 	stopHash := ""
@@ -464,6 +520,16 @@ func (p *GitParser) ParseTagRange(repoURL, currentTag, prevTag string) (parser.M
 	}
 
 	return out, nil
+}
+
+// ParseTagRange clones repoURL and delegates to ParseTagRangeFromRepo.
+// If currentTag is empty, HEAD is used. If prevTag is empty it is auto-discovered.
+func (p *GitParser) ParseTagRange(repoURL, currentTag, prevTag string) (parser.Mapped, error) {
+	repo, err := CloneRepo(repoURL)
+	if err != nil {
+		return parser.Mapped{}, fmt.Errorf("clone %s: %w", repoURL, err)
+	}
+	return ParseTagRangeFromRepo(repo, repoURL, currentTag, prevTag)
 }
 
 // Parse clones the Git repository from the given URL into memory, extracts commits,
