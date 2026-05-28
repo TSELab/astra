@@ -11,6 +11,8 @@ import (
 
 	"github.com/TSELab/astra/internal/graph"
 	genent "github.com/TSELab/astra/internal/store/ent"
+	"github.com/TSELab/astra/internal/store/ent/artifact"
+	"github.com/TSELab/astra/internal/store/ent/resource"
 )
 
 // LoadGraph retrieves a stored graph from the database and
@@ -142,6 +144,24 @@ func loadResources(ctx context.Context, client *genent.Client) (map[string]graph
 
 	}
 	return out, nil
+}
+
+// ArtifactExists reports whether an artifact with the given AStRA ID is in the database.
+func (s *Store) ArtifactExists(ctx context.Context, id string) (bool, error) {
+	n, err := s.client.Artifact.Query().Where(artifact.AstraIDEQ(id)).Count(ctx)
+	if err != nil {
+		return false, fmt.Errorf("check artifact %q: %w", id, err)
+	}
+	return n > 0, nil
+}
+
+// ResourceExists reports whether a resource with the given AStRA ID is in the database.
+func (s *Store) ResourceExists(ctx context.Context, id string) (bool, error) {
+	n, err := s.client.Resource.Query().Where(resource.AstraIDEQ(id)).Count(ctx)
+	if err != nil {
+		return false, fmt.Errorf("check resource %q: %w", id, err)
+	}
+	return n > 0, nil
 }
 
 func loadEdges(ctx context.Context, client *genent.Client) ([]graph.Edge, error) {
