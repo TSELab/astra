@@ -63,16 +63,16 @@ func loadArtifacts(ctx context.Context, client *genent.Client) (map[string]graph
 	out := make(map[string]graph.Artifact)
 	for _, a := range rows {
 		ar := graph.Artifact{
-			ID:       a.AstraID,
-			Kind:     a.Kind,
-			Name:     a.Name,
-			Version:  a.Version,
-			Hash:     a.Hash,
-			Size:     a.Size,
-			Metadata: a.Metadata}
-
+			ID:           a.AstraID,
+			Kind:         a.Kind,
+			Name:         a.Name,
+			Version:      a.Version,
+			Hash:         a.Hash,
+			Size:         a.Size,
+			Metadata:     a.Metadata,
+			Completeness: string(a.Completeness),
+		}
 		out[a.AstraID] = ar
-
 	}
 	return out, nil
 }

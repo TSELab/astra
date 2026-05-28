@@ -23,12 +23,18 @@ func cloneMap(in map[string]string) map[string]string {
 // normalizeArtifact converts a parser.ArtifactItem into a typed graph.Artifact.
 // It preserves all attrs in Metadata and additionally extracts Hash/Size when present.
 func normalizeArtifact(it parser.ArtifactItem) graph.Artifact {
+	completeness := it.Completeness
+	if completeness == "" {
+		completeness = graph.Complete
+	}
+
 	a := graph.Artifact{
-		ID:       it.ID,
-		Kind:     normalizeArtifactKind(it.Kind),
-		Name:     it.Label,
-		Version:  extractVersionFromID(it.ID), // explicit version (best-effort)
-		Metadata: map[string]string{},
+		ID:           it.ID,
+		Kind:         normalizeArtifactKind(it.Kind),
+		Name:         it.Label,
+		Version:      extractVersionFromID(it.ID), // explicit version (best-effort)
+		Metadata:     map[string]string{},
+		Completeness: completeness,
 	}
 
 	for k, v := range it.Attrs {

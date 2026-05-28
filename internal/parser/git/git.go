@@ -2,15 +2,20 @@
 Package git implements the GitParser for AStRA.
 
 GitParser parses Git repositories and maps commits and files
-into AStRA’s DAG-based artifact graph.
+into AStRA's DAG-based artifact graph.
 
 For each commit:
 - The commit is represented as a step.
 - Authors are represented as principals.
-- The Git is treated as a resource.
+- The Git repo is treated as a resource (keyed by its URL).
 - Files are tracked as input/output artifacts.
 - Parent commits are mapped as input artifacts.
 - The commit itself and changed files are mapped as output artifacts.
+
+ParseTagRange walks commits between two release tags (prevTag exclusive,
+currentTag inclusive). The commit at prevTag is emitted as an incomplete
+boundary artifact so downstream queries know where exploration stopped.
+PrevTag auto-discovers the immediately preceding tag by commit timestamp.
 */
 package git
 
@@ -37,10 +42,9 @@ import (
 type GitParser struct{}
 
 // TODO IDs should be moved out from git parser
-// MakeArtifactID returns a namespaced AStRA artifact ID for a file
+// MakeFileArtifactID returns a namespaced AStRA artifact ID for a file
 // at a specific commit in the given repository.
 // Artifact ID format: artifact:gitfile:<host>/<owner>/<repo>@<commit-hash>:<filePath>
-
 func MakeFileArtifactID(repoURL string, commitHash, filePath string) string {
 	repoSlug := getRepoSlug(repoURL)
 	return fmt.Sprintf("artifact:gitfile:%s@%s:%s", repoSlug, commitHash, filePath)
@@ -208,19 +212,21 @@ func GetCommitIO(repo *git.Repository, hash string) (inputs []*object.File, outp
 func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (parser.Record, error) {
 	rec := parser.Record{
 		Step: parser.StepItem{
-			ID:    MakeCommitStepID(remoteURL, c.Hash.String()),
-			Label: "Commit",
-			Kind:  "step",
+			ID:           MakeCommitStepID(remoteURL, c.Hash.String()),
+			Label:        "Commit",
+			Kind:         "step",
+			Completeness: "complete",
 			Attrs: map[string]string{
 				"phase":   "source",
 				"message": strings.TrimSpace(c.Message),
 			},
 		},
 		Principal: parser.PrincipalItem{
-			ID:    fmt.Sprintf("principal:%s", c.Author.Email),
-			Label: c.Author.Name,
-			Kind:  "principal",
-			Attrs: map[string]string{"email": c.Author.Email},
+			ID:           fmt.Sprintf("principal:%s", c.Author.Email),
+			Label:        c.Author.Name,
+			Kind:         "principal",
+			Completeness: "complete",
+			Attrs:        map[string]string{"email": c.Author.Email},
 		},
 	}
 
@@ -239,9 +245,10 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 			}
 			parentHash = parent.Hash.String()
 			rec.ArtifactsIn = append(rec.ArtifactsIn, parser.ArtifactItem{
-				ID:    MakeCommitArtifactID(remoteURL, parentHash),
-				Label: parentHash,
-				Kind:  "git-commit",
+				ID:           MakeCommitArtifactID(remoteURL, parentHash),
+				Label:        parentHash,
+				Kind:         "git-commit",
+				Completeness: "complete",
 				Attrs: map[string]string{
 					"role":  "parent",
 					"index": strconv.Itoa(i),
@@ -258,9 +265,10 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 			continue
 		}
 		rec.ArtifactsIn = append(rec.ArtifactsIn, parser.ArtifactItem{
-			ID:    MakeFileArtifactID(remoteURL, parentHash, f.Name),
-			Label: f.Name,
-			Kind:  "git-file",
+			ID:           MakeFileArtifactID(remoteURL, parentHash, f.Name),
+			Label:        f.Name,
+			Kind:         "git-file",
+			Completeness: "complete",
 			Attrs: map[string]string{
 				"hash": f.Hash.String(),
 				"size": strconv.FormatInt(f.Size, 10),
@@ -271,9 +279,10 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 
 	// Add the commit itself as an output artifact.
 	rec.ArtifactsOut = append(rec.ArtifactsOut, parser.ArtifactItem{
-		ID:    MakeCommitArtifactID(remoteURL, c.Hash.String()),
-		Label: c.Hash.String(),
-		Kind:  "git-commit",
+		ID:           MakeCommitArtifactID(remoteURL, c.Hash.String()),
+		Label:        c.Hash.String(),
+		Kind:         "git-commit",
+		Completeness: "complete",
 		Attrs: map[string]string{
 			"message": strings.TrimSpace(c.Message),
 			"author":  c.Author.Email,
@@ -287,9 +296,10 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 			continue
 		}
 		rec.ArtifactsOut = append(rec.ArtifactsOut, parser.ArtifactItem{
-			ID:    MakeFileArtifactID(remoteURL, c.Hash.String(), f.Name),
-			Label: f.Name,
-			Kind:  "git-file",
+			ID:           MakeFileArtifactID(remoteURL, c.Hash.String(), f.Name),
+			Label:        f.Name,
+			Kind:         "git-file",
+			Completeness: "complete",
 			Attrs: map[string]string{
 				"content-hash": f.Hash.String(),
 				"size":         strconv.FormatInt(f.Size, 10),
@@ -299,24 +309,172 @@ func commitToRecord(c *object.Commit, repo *git.Repository, remoteURL string) (p
 	}
 
 	rec.Resources = append(rec.Resources, parser.ResourceItem{
-		ID:    "resource:git",
-		Label: "git",
-		Kind:  "vcs",
+		ID:           "vcs:" + remoteURL,
+		Label:        remoteURL,
+		Kind:         "vcs",
+		Completeness: "complete",
+		Attrs:        map[string]string{"uri": remoteURL},
 	})
 
 	return rec, nil
 }
 
+// resolveTagCommit resolves a tag name to its underlying commit.
+// Handles both lightweight tags (direct commit reference) and annotated tags
+// (tag object that points to a commit).
+func resolveTagCommit(repo *git.Repository, tagName string) (*object.Commit, error) {
+	tagRef, err := repo.Tag(tagName)
+	if err != nil {
+		return nil, fmt.Errorf("tag %q not found: %w", tagName, err)
+	}
+
+	// Annotated tag: the reference points to a tag object
+	if tagObj, err := repo.TagObject(tagRef.Hash()); err == nil {
+		return repo.CommitObject(tagObj.Target)
+	}
+
+	// Lightweight tag: the reference points directly to a commit
+	return repo.CommitObject(tagRef.Hash())
+}
+
+// PrevTag finds the tag immediately preceding currentTag by commit timestamp.
+// It clones from the same already-cloned repo (no network call).
+// Returns ("", nil) if currentTag is the oldest tag (walk to root).
+func PrevTag(repo *git.Repository, currentTag string) (string, error) {
+	currentCommit, err := resolveTagCommit(repo, currentTag)
+	if err != nil {
+		return "", fmt.Errorf("resolve current tag: %w", err)
+	}
+	currentTime := currentCommit.Committer.When
+
+	tagsIter, err := repo.Tags()
+	if err != nil {
+		return "", fmt.Errorf("list tags: %w", err)
+	}
+	defer tagsIter.Close()
+
+	var bestTag string
+	var bestTime time.Time
+
+	err = tagsIter.ForEach(func(ref *plumbing.Reference) error {
+		name := ref.Name().Short()
+		if name == currentTag {
+			return nil
+		}
+		commit, err := resolveTagCommit(repo, name)
+		if err != nil {
+			return nil // skip tags that can't be resolved
+		}
+		t := commit.Committer.When
+		if t.Before(currentTime) && (bestTag == "" || t.After(bestTime)) {
+			bestTag = name
+			bestTime = t
+		}
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("iterate tags: %w", err)
+	}
+	return bestTag, nil
+}
+
+// ParseTagRange clones repoURL and walks commits from currentTag back to (but
+// not including) prevTag. If prevTag is empty it is auto-discovered via
+// PrevTag; if there is no earlier tag, history is walked all the way to the
+// root commit.
+//
+// Each walked commit is emitted as a complete Step + Artifacts. The commit at
+// prevTag (the boundary) is emitted as a single incomplete Artifact so the
+// graph records where exploration stopped.
+func (p *GitParser) ParseTagRange(repoURL, currentTag, prevTag string) (parser.Mapped, error) {
+	fmt.Println("Cloning:", repoURL)
+	repo, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:      repoURL,
+		Tags:     git.AllTags,
+		Progress: os.Stdout,
+	})
+	if err != nil {
+		return parser.Mapped{}, fmt.Errorf("clone %s: %w", repoURL, err)
+	}
+
+	if prevTag == "" {
+		prevTag, err = PrevTag(repo, currentTag)
+		if err != nil {
+			return parser.Mapped{}, fmt.Errorf("find prev tag: %w", err)
+		}
+	}
+
+	headCommit, err := resolveTagCommit(repo, currentTag)
+	if err != nil {
+		return parser.Mapped{}, fmt.Errorf("resolve tag %q: %w", currentTag, err)
+	}
+
+	stopHash := ""
+	if prevTag != "" {
+		stopCommit, err := resolveTagCommit(repo, prevTag)
+		if err != nil {
+			return parser.Mapped{}, fmt.Errorf("resolve prev tag %q: %w", prevTag, err)
+		}
+		stopHash = stopCommit.Hash.String()
+	}
+
+	commits, err := repo.Log(&git.LogOptions{From: headCommit.Hash})
+	if err != nil {
+		return parser.Mapped{}, fmt.Errorf("log: %w", err)
+	}
+	defer commits.Close()
+
+	out := parser.Mapped{
+		Source:       "go-git",
+		NormalizedAt: time.Now().Unix(),
+	}
+
+	for {
+		c, err := commits.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return parser.Mapped{}, err
+		}
+
+		if stopHash != "" && c.Hash.String() == stopHash {
+			out.Mapped = append(out.Mapped, parser.Record{
+				ArtifactsOut: []parser.ArtifactItem{
+					{
+						ID:           MakeCommitArtifactID(repoURL, c.Hash.String()),
+						Label:        c.Hash.String(),
+						Kind:         "git-commit",
+						Completeness: "incomplete",
+						Attrs: map[string]string{
+							"boundary": "true",
+							"tag":      prevTag,
+						},
+					},
+				},
+			})
+			break
+		}
+
+		rec, err := commitToRecord(c, repo, repoURL)
+		if err != nil {
+			return parser.Mapped{}, err
+		}
+		out.Mapped = append(out.Mapped, rec)
+	}
+
+	return out, nil
+}
+
 // Parse clones the Git repository from the given URL into memory, extracts commits,
 // and maps them into a parser.Mapped structure for AStRA.
 //
-// Each commit is represented as a step, authors as principals, Git as a resource,
-// parent commits as input artifacts, and the commit itself plus changed files
-// as output artifacts.
-func (p *GitParser) Parse(r io.Reader) (parser.Evidence, error) {
+// This method implements the parser.Parser interface. For tag-range parsing
+// (the recommended approach), use ParseTagRange instead.
+func (p *GitParser) Parse(r io.Reader) (parser.Mapped, error) {
 	urlBytes, err := io.ReadAll(r)
 	if err != nil {
-		return parser.Evidence{}, err
+		return parser.Mapped{}, err
 	}
 	repoURL := strings.TrimSpace(string(urlBytes))
 	fmt.Println("Cloning:", repoURL)
@@ -326,30 +484,30 @@ func (p *GitParser) Parse(r io.Reader) (parser.Evidence, error) {
 		Progress: os.Stdout,
 	})
 	if err != nil {
-		return parser.Evidence{}, fmt.Errorf("clone error: %w", err)
+		return parser.Mapped{}, fmt.Errorf("clone error: %w", err)
 	}
 
 	rem, err := repo.Remote("origin")
 	if err != nil {
-		return parser.Evidence{}, fmt.Errorf("remote error: %w", err)
+		return parser.Mapped{}, fmt.Errorf("remote error: %w", err)
 	}
 	remoteURLs := rem.Config().URLs
 	if len(remoteURLs) == 0 {
-		return parser.Evidence{}, fmt.Errorf("origin remote has no URLs")
+		return parser.Mapped{}, fmt.Errorf("origin remote has no URLs")
 	}
 	remoteURL := remoteURLs[0]
 
 	ref, err := repo.Head()
 	if err != nil {
-		return parser.Evidence{}, fmt.Errorf("head error: %w", err)
+		return parser.Mapped{}, fmt.Errorf("head error: %w", err)
 	}
 
 	commits, err := repo.Log(&git.LogOptions{From: ref.Hash()})
 	if err != nil {
-		return parser.Evidence{}, fmt.Errorf("log error: %w", err)
+		return parser.Mapped{}, fmt.Errorf("log error: %w", err)
 	}
 
-	out := parser.Evidence{
+	out := parser.Mapped{
 		Source:       "go-git",
 		NormalizedAt: time.Now().Unix(),
 	}
@@ -359,11 +517,11 @@ func (p *GitParser) Parse(r io.Reader) (parser.Evidence, error) {
 		if err != nil {
 			return err
 		}
-		out.Records = append(out.Records, rec)
+		out.Mapped = append(out.Mapped, rec)
 		return nil
 	})
 	if err != nil {
-		return parser.Evidence{}, err
+		return parser.Mapped{}, err
 	}
 
 	return out, nil

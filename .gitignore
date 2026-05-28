@@ -1,0 +1,18 @@
+# compiled binaries
+/astra
+/prototype
+
+# databases
+*.db
+
+# output artefacts
+out/
+output/
+hypergraph*.dot
+hypergraph*.json
+
+# data (separate astra-data repo)
+astra-data/
+buildinfos-*/
+vcs_urls.txt
+sample.buildinfo

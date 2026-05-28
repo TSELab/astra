@@ -18,6 +18,7 @@ package buildinfo
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"regexp"
@@ -30,25 +31,21 @@ import (
 
 type BuildinfoParser struct{}
 
-func (p *BuildinfoParser) Parse(r io.Reader) (parser.Evidence, error) {
+func (p *BuildinfoParser) Parse(r io.Reader) (parser.Mapped, error) {
 	return parseBuildinfo(r)
 }
 
-func parseBuildinfo(r io.Reader) (parser.Evidence, error) {
-	scanner := bufio.NewScanner(r)
+func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		return parser.Mapped{}, err
+	}
 
+	// Pre-scan: collect header fields that may appear after Checksums-Sha256
 	var source, version, buildDate, buildOrigin, buildArch string
-	var outputItems []parser.ArtifactItem
-	var depItems []parser.ResourceItem
-	var pgpLines []string
-	seenDeps := map[string]bool{}
-
-	outputSection, dependsSection, pgpSection := false, false, false
-	re := regexp.MustCompile(`([a-zA-Z0-9.+:~\-]+) \(= ([^\)]+)\)`)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
+	pre := bufio.NewScanner(bytes.NewReader(raw))
+	for pre.Scan() {
+		line := pre.Text()
 		switch {
 		case strings.HasPrefix(line, "Source:"):
 			source = strings.TrimSpace(strings.TrimPrefix(line, "Source:"))
@@ -60,6 +57,23 @@ func parseBuildinfo(r io.Reader) (parser.Evidence, error) {
 			buildDate = strings.TrimSpace(strings.TrimPrefix(line, "Build-Date:"))
 		case strings.HasPrefix(line, "Build-Origin:"):
 			buildOrigin = strings.TrimSpace(strings.TrimPrefix(line, "Build-Origin:"))
+		}
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(raw))
+
+	var outputItems []parser.ArtifactItem
+	var depItems []parser.ArtifactItem
+	var pgpLines []string
+	seenDeps := map[string]bool{}
+
+	outputSection, dependsSection, pgpSection := false, false, false
+	re := regexp.MustCompile(`([a-zA-Z0-9.+:~\-]+) \(= ([^\)]+)\)`)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		switch {
 		case strings.HasPrefix(line, "Checksums-Sha256:"):
 			outputSection = true
 			continue
@@ -106,13 +120,14 @@ func parseBuildinfo(r io.Reader) (parser.Evidence, error) {
 			for _, match := range matches {
 				pkg := strings.TrimSpace(match[1])
 				ver := strings.TrimSpace(match[2])
-				purl := fmt.Sprintf("pkg:deb/debian/%s@%s", pkg, ver)
+				purl := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=%s", pkg, ver, buildArch)
 				if !seenDeps[purl] {
 					seenDeps[purl] = true
-					depItems = append(depItems, parser.ResourceItem{
-						ID:    fmt.Sprintf("resource:%s", purl),
-						Label: pkg,
-						Kind:  "deb",
+					depItems = append(depItems, parser.ArtifactItem{
+						ID:           fmt.Sprintf("artifact:%s", purl),
+						Label:        pkg,
+						Kind:         "deb",
+						Completeness: "incomplete",
 						Attrs: map[string]string{
 							"purl":    purl,
 							"version": ver,
@@ -124,7 +139,7 @@ func parseBuildinfo(r io.Reader) (parser.Evidence, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return parser.Evidence{}, err
+		return parser.Mapped{}, err
 	}
 
 	// Extract PGP signing key ID from the signature block.
@@ -144,9 +159,10 @@ func parseBuildinfo(r io.Reader) (parser.Evidence, error) {
 	// per the PURL deb spec convention. The buildinfo version is used.
 	tarballPURL := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=source", source, upstreamVersion)
 	tarballResource := parser.ResourceItem{
-		ID:    fmt.Sprintf("resource:%s", tarballPURL),
-		Label: tarball,
-		Kind:  "tarball",
+		ID:           tarballPURL,
+		Label:        tarball,
+		Kind:         "tarball",
+		Completeness: "incomplete",
 		Attrs: map[string]string{
 			"purl":   tarballPURL,
 			"format": "orig.tar.xz",
@@ -176,13 +192,14 @@ func parseBuildinfo(r io.Reader) (parser.Evidence, error) {
 			},
 		},
 		Principal:    principal,
+		ArtifactsIn:  depItems,
 		ArtifactsOut: outputItems,
-		Resources:    append([]parser.ResourceItem{tarballResource}, depItems...),
+		Resources:    []parser.ResourceItem{tarballResource},
 	}
 
-	return parser.Evidence{
+	return parser.Mapped{
 		Source:       "buildinfo",
 		NormalizedAt: time.Now().Unix(),
-		Records:      []parser.Record{rec},
+		Mapped:       []parser.Record{rec},
 	}, nil
 }

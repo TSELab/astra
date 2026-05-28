@@ -53,6 +53,11 @@ func (s *Store) SaveGraph(ctx context.Context, g graph.AstraGraph) (err error) {
 
 func saveArtifacts(ctx context.Context, tx *genent.Tx, items map[string]graph.Artifact) error {
 	for _, a := range items {
+		incoming := artifact.Completeness(a.Completeness)
+		if incoming == "" {
+			incoming = artifact.CompletenessComplete
+		}
+
 		existing, err := tx.Artifact.
 			Query().
 			Where(artifact.AstraIDEQ(a.ID)).
@@ -69,6 +74,7 @@ func saveArtifacts(ctx context.Context, tx *genent.Tx, items map[string]graph.Ar
 				SetHash(a.Hash).
 				SetSize(a.Size).
 				SetMetadata(a.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("create artifact %q: %w", a.ID, err)
@@ -78,6 +84,9 @@ func saveArtifacts(ctx context.Context, tx *genent.Tx, items map[string]graph.Ar
 			return fmt.Errorf("query artifact %q: %w", a.ID, err)
 
 		default:
+			if graph.CompletenessRank(string(incoming)) <= graph.CompletenessRank(string(existing.Completeness)) {
+				continue // stored is at least as complete — skip
+			}
 			_, err = existing.
 				Update().
 				SetKind(a.Kind).
@@ -86,6 +95,7 @@ func saveArtifacts(ctx context.Context, tx *genent.Tx, items map[string]graph.Ar
 				SetHash(a.Hash).
 				SetSize(a.Size).
 				SetMetadata(a.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("update artifact %q: %w", a.ID, err)
@@ -97,6 +107,11 @@ func saveArtifacts(ctx context.Context, tx *genent.Tx, items map[string]graph.Ar
 
 func saveSteps(ctx context.Context, tx *genent.Tx, items map[string]graph.Step) error {
 	for _, st := range items {
+		incoming := step.Completeness(st.Completeness)
+		if incoming == "" {
+			incoming = step.CompletenessComplete
+		}
+
 		existing, err := tx.Step.
 			Query().
 			Where(step.AstraIDEQ(st.ID)).
@@ -112,6 +127,7 @@ func saveSteps(ctx context.Context, tx *genent.Tx, items map[string]graph.Step) 
 				SetArch(st.Arch).
 				SetEnvironment(st.Environment).
 				SetMetadata(st.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("create step %q: %w", st.ID, err)
@@ -121,6 +137,9 @@ func saveSteps(ctx context.Context, tx *genent.Tx, items map[string]graph.Step) 
 			return fmt.Errorf("query step %q: %w", st.ID, err)
 
 		default:
+			if graph.CompletenessRank(string(incoming)) <= graph.CompletenessRank(string(existing.Completeness)) {
+				continue
+			}
 			_, err = existing.
 				Update().
 				SetCommand(st.Command).
@@ -128,6 +147,7 @@ func saveSteps(ctx context.Context, tx *genent.Tx, items map[string]graph.Step) 
 				SetArch(st.Arch).
 				SetEnvironment(st.Environment).
 				SetMetadata(st.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("update step %q: %w", st.ID, err)
@@ -139,6 +159,11 @@ func saveSteps(ctx context.Context, tx *genent.Tx, items map[string]graph.Step) 
 
 func savePrincipals(ctx context.Context, tx *genent.Tx, items map[string]graph.Principal) error {
 	for _, p := range items {
+		incoming := principal.Completeness(p.Completeness)
+		if incoming == "" {
+			incoming = principal.CompletenessComplete
+		}
+
 		existing, err := tx.Principal.
 			Query().
 			Where(principal.AstraIDEQ(p.ID)).
@@ -153,6 +178,7 @@ func savePrincipals(ctx context.Context, tx *genent.Tx, items map[string]graph.P
 				SetTrust(p.Trust).
 				SetBuilder(p.Builder).
 				SetMetadata(p.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("create principal %q: %w", p.ID, err)
@@ -162,12 +188,16 @@ func savePrincipals(ctx context.Context, tx *genent.Tx, items map[string]graph.P
 			return fmt.Errorf("query principal %q: %w", p.ID, err)
 
 		default:
+			if graph.CompletenessRank(string(incoming)) <= graph.CompletenessRank(string(existing.Completeness)) {
+				continue
+			}
 			_, err = existing.
 				Update().
 				SetName(p.Name).
 				SetTrust(p.Trust).
 				SetBuilder(p.Builder).
 				SetMetadata(p.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("update principal %q: %w", p.ID, err)
@@ -179,6 +209,11 @@ func savePrincipals(ctx context.Context, tx *genent.Tx, items map[string]graph.P
 
 func saveResources(ctx context.Context, tx *genent.Tx, items map[string]graph.Resource) error {
 	for _, r := range items {
+		incoming := resource.Completeness(r.Completeness)
+		if incoming == "" {
+			incoming = resource.CompletenessComplete
+		}
+
 		existing, err := tx.Resource.
 			Query().
 			Where(resource.AstraIDEQ(r.ID)).
@@ -193,6 +228,7 @@ func saveResources(ctx context.Context, tx *genent.Tx, items map[string]graph.Re
 				SetURI(r.URI).
 				SetFormat(r.Format).
 				SetMetadata(r.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("create resource %q: %w", r.ID, err)
@@ -202,12 +238,16 @@ func saveResources(ctx context.Context, tx *genent.Tx, items map[string]graph.Re
 			return fmt.Errorf("query resource %q: %w", r.ID, err)
 
 		default:
+			if graph.CompletenessRank(string(incoming)) <= graph.CompletenessRank(string(existing.Completeness)) {
+				continue
+			}
 			_, err = existing.
 				Update().
 				SetType(r.Type).
 				SetURI(r.URI).
 				SetFormat(r.Format).
 				SetMetadata(r.Metadata).
+				SetCompleteness(incoming).
 				Save(ctx)
 			if err != nil {
 				return fmt.Errorf("update resource %q: %w", r.ID, err)
