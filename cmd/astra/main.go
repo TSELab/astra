@@ -1,12 +1,13 @@
 package main
 
 import (
-	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,13 +17,13 @@ import (
 	graph "github.com/TSELab/astra/internal/graph"
 	"github.com/TSELab/astra/internal/mapper"
 	parser "github.com/TSELab/astra/internal/parser"
-	buildinfoparser "github.com/TSELab/astra/internal/parser/buildinfo"
+	buildinfoparser "github.com/TSELab/astra/internal/parser/debian/buildinfo"
+	packagesparser "github.com/TSELab/astra/internal/parser/debian/packages"
 	gitparser "github.com/TSELab/astra/internal/parser/git"
 	intotoparser "github.com/TSELab/astra/internal/parser/intoto"
 	slsaparser "github.com/TSELab/astra/internal/parser/slsa"
 	entstore "github.com/TSELab/astra/internal/store/entstore"
 )
-
 
 var (
 	ctx context.Context
@@ -57,6 +58,15 @@ var parseCmd = &cobra.Command{
 			r = strings.NewReader(in)
 		case "buildinfo":
 			p = &buildinfoparser.BuildinfoParser{}
+			f, err := os.Open(in)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			r = f
+		case "packages":
+			archiveURL, _ := cmd.Flags().GetString("archive-url")
+			p = &packagesparser.PackagesParser{ArchiveURL: archiveURL}
 			f, err := os.Open(in)
 			if err != nil {
 				return err
@@ -113,7 +123,6 @@ var mapCmd = &cobra.Command{
 
 		astra := mapper.ToAstraGraph(parsed)
 		exported_graph := graph.ToExport(astra)
-		// save graph to database
 		if err := db.SaveGraph(ctx, astra); err != nil {
 			log.Fatalf("save graph: %v", err)
 		}
@@ -133,25 +142,8 @@ var vizCmd = &cobra.Command{
 	Use:   "viz",
 	Short: "Render an AStRA graph as DOT",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		//in, _ := cmd.Flags().GetString("input")
 		out, _ := cmd.Flags().GetString("output")
 
-		//to viz from json export
-		/*
-			graphJSON, err := os.ReadFile(in)
-			if err != nil {
-				return err
-			}
-
-			var eg graph.ExportGraph
-			if err := json.Unmarshal(graphJSON, &eg); err != nil {
-				return err
-			}
-
-			g := graph.FromExport(eg)
-			dot := graph.ToDOT(g)
-		*/
-		//load graph from database
 		loaded, err := db.LoadGraph(ctx, "")
 		if err != nil {
 			log.Fatalf("load graph: %v", err)
@@ -181,9 +173,16 @@ var initCmd = &cobra.Command{
 	},
 }
 
+// ── ingest ────────────────────────────────────────────────────────────────────
+
 var ingestCmd = &cobra.Command{
 	Use:   "ingest",
 	Short: "Ingest a provenance document into the AStRA graph",
+}
+
+var ingestDebianCmd = &cobra.Command{
+	Use:   "debian",
+	Short: "Ingest Debian provenance documents",
 }
 
 var ingestBuildinfoCmd = &cobra.Command{
@@ -212,14 +211,78 @@ var ingestBuildinfoCmd = &cobra.Command{
 	},
 }
 
+var ingestPackagesCmd = &cobra.Command{
+	Use:   "packages <file-or-url>",
+	Short: "Parse and ingest a Debian Packages index file (local path or snapshot URL)",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		arg := args[0]
+		archiveFlagURL, _ := cmd.Flags().GetString("archive-url")
+
+		var reader io.Reader
+		var archiveURL string
+
+		if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+			fetchURL := arg
+			if strings.HasSuffix(arg, "/") {
+				fetchURL = arg + "Packages.gz"
+			}
+			// Base directory URL (without the Packages.gz filename) becomes the archive URL.
+			archiveURL = strings.TrimSuffix(fetchURL, "Packages.gz")
+
+			resp, err := http.Get(fetchURL) //nolint:noctx
+			if err != nil {
+				return fmt.Errorf("fetch %s: %w", fetchURL, err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				return fmt.Errorf("fetch %s: HTTP %d", fetchURL, resp.StatusCode)
+			}
+
+			if strings.HasSuffix(fetchURL, ".gz") {
+				gzr, err := gzip.NewReader(resp.Body)
+				if err != nil {
+					return fmt.Errorf("decompress: %w", err)
+				}
+				defer gzr.Close()
+				reader = gzr
+			} else {
+				reader = resp.Body
+			}
+		} else {
+			f, err := os.Open(arg)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			reader = f
+			archiveURL = archiveFlagURL
+		}
+
+		mapped, err := (&packagesparser.PackagesParser{ArchiveURL: archiveURL}).Parse(reader)
+		if err != nil {
+			return fmt.Errorf("parse: %w", err)
+		}
+
+		g := mapper.ToAstraGraph(mapped)
+		if err := db.SaveGraph(ctx, g); err != nil {
+			return fmt.Errorf("save: %w", err)
+		}
+		fmt.Printf("[OK] Ingested %d package entries from %s\n", len(mapped.Mapped), arg)
+		return nil
+	},
+}
+
 var ingestGitCmd = &cobra.Command{
 	Use:   "git <repo-url>",
-	Short: "Parse and ingest commits up to HEAD (or the latest tag) from a git repo",
+	Short: "Parse and ingest a tag range from a git repo",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoURL := args[0]
+		currentTag, _ := cmd.Flags().GetString("tag")
+		prevTag, _ := cmd.Flags().GetString("prev-tag")
 
-		mapped, err := (&gitparser.GitParser{}).ParseTagRange(repoURL, "", "")
+		mapped, err := (&gitparser.GitParser{}).ParseTagRange(repoURL, currentTag, prevTag)
 		if err != nil {
 			return fmt.Errorf("parse git: %w", err)
 		}
@@ -233,120 +296,35 @@ var ingestGitCmd = &cobra.Command{
 	},
 }
 
-var enrichCmd = &cobra.Command{
-	Use:   "enrich",
-	Short: "Enrich the graph with external data",
-}
+var ingestIntotoCmd = &cobra.Command{
+	Use:   "intoto <file>",
+	Short: "Parse and ingest an in-toto link file",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path := args[0]
+		linker, _ := cmd.Flags().GetString("linker")
 
-var enrichLinkCmd = &cobra.Command{
-	Use:   "link",
-	Short: "Create sourced_from edges from an enrichment manifest",
-	RunE:  runEnrichLink,
-}
-
-func stripEpoch(ver string) string {
-	if i := strings.Index(ver, ":"); i >= 0 {
-		return ver[i+1:]
-	}
-	return ver
-}
-
-// runEnrichLink reads a TSV manifest (columns: package, version, git_url, git_tag)
-// and writes sourced_from edges from each source tarball Resource to the
-// corresponding git commit Artifact. Repos are cloned once per unique git_url.
-func runEnrichLink(cmd *cobra.Command, args []string) error {
-	manifest, _ := cmd.Flags().GetString("manifest")
-	f, err := os.Open(manifest)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	type row struct{ pkg, ver, gitURL, tag string }
-	var rows []row
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := sc.Text()
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.Split(line, "\t")
-		if len(parts) < 3 {
-			continue
-		}
-		r := row{pkg: parts[0], ver: parts[1], gitURL: parts[2]}
-		if len(parts) >= 4 {
-			r.tag = strings.TrimSpace(parts[3])
-		}
-		rows = append(rows, r)
-	}
-	if err := sc.Err(); err != nil {
-		return err
-	}
-
-	byURL := map[string][]row{}
-	for _, r := range rows {
-		byURL[r.gitURL] = append(byURL[r.gitURL], r)
-	}
-
-	var linked, skipped int
-	for gitURL, group := range byURL {
-		repo, err := gitparser.CloneRepo(gitURL)
+		f, err := os.Open(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: clone %s: %v\n", gitURL, err)
-			skipped += len(group)
-			continue
+			return err
+		}
+		defer f.Close()
+
+		mapped, err := (&intotoparser.InTotoParser{Linker: linker}).Parse(f)
+		if err != nil {
+			return fmt.Errorf("parse: %w", err)
 		}
 
-		for _, r := range group {
-			upstreamVer := strings.SplitN(stripEpoch(r.ver), "-", 2)[0]
-			sourcePURL := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=source", r.pkg, upstreamVer)
-
-			hash, err := gitparser.TagHash(repo, r.tag)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "warning: tag %q not in %s: %v\n", r.tag, gitURL, err)
-				skipped++
-				continue
-			}
-			commitID := gitparser.MakeCommitArtifactID(gitURL, hash)
-
-			resExists, err := db.ResourceExists(ctx, sourcePURL)
-			if err != nil {
-				return fmt.Errorf("check resource: %w", err)
-			}
-			if !resExists {
-				fmt.Fprintf(os.Stderr, "warning: resource %q not in graph, skipping\n", sourcePURL)
-				skipped++
-				continue
-			}
-
-			artExists, err := db.ArtifactExists(ctx, commitID)
-			if err != nil {
-				return fmt.Errorf("check artifact: %w", err)
-			}
-			if !artExists {
-				mapped, err := gitparser.ParseTagRangeFromRepo(repo, gitURL, r.tag, "")
-				if err != nil {
-					return fmt.Errorf("parse tag range: %w", err)
-				}
-				g := mapper.ToAstraGraph(mapped)
-				if err := db.SaveGraph(ctx, g); err != nil {
-					return fmt.Errorf("save git graph: %w", err)
-				}
-			}
-
-			var eg graph.AstraGraph
-			eg.Edges = []graph.Edge{{Source: sourcePURL, Target: commitID, Relation: "sourced_from"}}
-			if err := db.SaveGraph(ctx, eg); err != nil {
-				return fmt.Errorf("save edge: %w", err)
-			}
-			linked++
+		g := mapper.ToAstraGraph(mapped)
+		if err := db.SaveGraph(ctx, g); err != nil {
+			return fmt.Errorf("save: %w", err)
 		}
-	}
-
-	fmt.Printf("[OK] enrich link: %d edges written, %d skipped\n", linked, skipped)
-	return nil
+		fmt.Println("[OK] Ingested", path)
+		return nil
+	},
 }
+
+// ── root ──────────────────────────────────────────────────────────────────────
 
 var rootCmd = &cobra.Command{
 	Use:   "astra",
@@ -356,7 +334,8 @@ var rootCmd = &cobra.Command{
 func init() {
 	parseCmd.Flags().StringP("input", "i", "", "input file path or repo URL (git)")
 	parseCmd.Flags().StringP("output", "o", "", "output normalized JSON")
-	parseCmd.Flags().StringP("format", "f", "git", "format: git|buildinfo|intoto|slsa")
+	parseCmd.Flags().StringP("format", "f", "git", "format: git|buildinfo|packages|intoto|slsa")
+	parseCmd.Flags().StringP("archive-url", "u", "https://deb.debian.org/debian", "base URL of the Debian archive (packages format only)")
 	parseCmd.MarkFlagRequired("input")
 	parseCmd.MarkFlagRequired("output")
 
@@ -368,18 +347,21 @@ func init() {
 	vizCmd.Flags().StringP("input", "i", "", "input graph JSON (unused; graph is loaded from DB)")
 	vizCmd.Flags().StringP("output", "o", "graph.dot", "output DOT file")
 
-	enrichLinkCmd.Flags().StringP("manifest", "m", "", "TSV manifest (columns: package, version, git_url, git_tag)")
-	enrichLinkCmd.MarkFlagRequired("manifest")
-	enrichCmd.AddCommand(enrichLinkCmd)
-	ingestCmd.AddCommand(ingestBuildinfoCmd, ingestGitCmd)
+	ingestPackagesCmd.Flags().StringP("archive-url", "u", "https://deb.debian.org/debian", "base URL of the Debian archive")
 
-	rootCmd.AddCommand(parseCmd, mapCmd, vizCmd, initCmd, ingestCmd, enrichCmd)
+	ingestGitCmd.Flags().StringP("tag", "t", "", "current tag to walk from (default: latest tag in repo)")
+	ingestGitCmd.Flags().String("prev-tag", "", "previous tag to stop at (default: auto-detected)")
+
+	ingestIntotoCmd.Flags().String("linker", "debtrace", "name of the provenance database that produced the link file")
+
+	ingestDebianCmd.AddCommand(ingestBuildinfoCmd, ingestPackagesCmd)
+	ingestCmd.AddCommand(ingestGitCmd, ingestDebianCmd, ingestIntotoCmd)
+
+	rootCmd.AddCommand(parseCmd, mapCmd, vizCmd, initCmd, ingestCmd)
 }
 
 func main() {
-
 	ctx = context.Background()
-	// open DB
 	var err error
 	db, err = entstore.OpenSQLite("astra.db")
 	if err != nil {

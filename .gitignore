@@ -6,13 +6,24 @@
 *.db
 
 # output artefacts
-out/
-output/
+/out/
+/output/
 hypergraph*.dot
 hypergraph*.json
+
+# root-level ad-hoc output files
+/*.dot
+/*.svg
+/*.buildinfo
+/*.link
+/*.link.json
+
+# test run outputs too large to commit
+test/output/full.dot
 
 # data (separate astra-data repo)
 astra-data/
 buildinfos-*/
 vcs_urls.txt
 sample.buildinfo
+scripts/

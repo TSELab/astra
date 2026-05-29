@@ -1,0 +1,20 @@
+{
+  "signed": {
+    "_type": "link",
+    "name": "build-xxhash",
+    "materials": {
+      "github.com/Cyan4973/xxHash@v0.8.1": {
+        "sha256": "35b0373c697b5f160d3db26b1cbb45a0d5ba788c"
+      }
+    },
+    "products": {
+      "xxhash_0.8.1.orig.tar.gz": {
+        "sha256": "3bb6b7d6f30c591dd65aaaff1c8b7a5b94d81687998ca9400082c739a690436c"
+      }
+    },
+    "byproducts": {},
+    "environment": {},
+    "command": ["dpkg-buildpackage", "-us", "-uc", "-b"]
+  },
+  "signatures": []
+}

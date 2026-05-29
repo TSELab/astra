@@ -44,6 +44,8 @@ func normalizeArtifact(it parser.ArtifactItem) graph.Artifact {
 	// Pull typed fields if present
 	if h, ok := it.Attrs["content-hash"]; ok && strings.TrimSpace(h) != "" {
 		a.Hash = h
+	} else if h, ok := it.Attrs["hash"]; ok && strings.TrimSpace(h) != "" {
+		a.Hash = h
 	}
 	if s, ok := it.Attrs["size"]; ok && strings.TrimSpace(s) != "" {
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil {

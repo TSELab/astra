@@ -438,19 +438,36 @@ func ParseTagRangeFromRepo(repo *git.Repository, repoURL, currentTag, prevTag st
 	var err error
 
 	if currentTag == "" {
-		ref, err := repo.Head()
+		// Tagless mode: walk the most recent complete release range.
+		// Use the latest tag as currentTag and auto-discover the tag before it.
+		// This avoids walking unreleased development commits between HEAD and the
+		// latest tag, which can be enormous for actively developed repos.
+		latestTag, err := LatestTag(repo)
 		if err != nil {
-			return parser.Mapped{}, fmt.Errorf("head: %w", err)
+			return parser.Mapped{}, fmt.Errorf("find latest tag: %w", err)
 		}
-		headCommit, err = repo.CommitObject(ref.Hash())
-		if err != nil {
-			return parser.Mapped{}, fmt.Errorf("resolve HEAD commit: %w", err)
-		}
-		if prevTag == "" {
-			prevTag, err = LatestTag(repo)
+		if latestTag == "" {
+			// No tags at all: fall back to HEAD with no stop.
+			ref, err := repo.Head()
 			if err != nil {
-				return parser.Mapped{}, fmt.Errorf("find latest tag: %w", err)
+				return parser.Mapped{}, fmt.Errorf("head: %w", err)
 			}
+			headCommit, err = repo.CommitObject(ref.Hash())
+			if err != nil {
+				return parser.Mapped{}, fmt.Errorf("resolve HEAD commit: %w", err)
+			}
+		} else {
+			headCommit, err = resolveTagCommit(repo, latestTag)
+			if err != nil {
+				return parser.Mapped{}, fmt.Errorf("resolve latest tag %q: %w", latestTag, err)
+			}
+			if prevTag == "" {
+				prevTag, err = PrevTag(repo, latestTag)
+				if err != nil {
+					return parser.Mapped{}, fmt.Errorf("find prev tag of %q: %w", latestTag, err)
+				}
+			}
+			fmt.Printf("tagless mode: walking %s → %s\n", latestTag, prevTag)
 		}
 	} else {
 		headCommit, err = resolveTagCommit(repo, currentTag)
