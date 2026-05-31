@@ -1,0 +1,20 @@
+{
+  "signed": {
+    "_type": "link",
+    "name": "build-libarchive",
+    "materials": {
+      "github.com/libarchive/libarchive@v3.6.2": {
+        "sha256": "ba80276ccc3c941c4918ec6e2460059f0c525c43"
+      }
+    },
+    "products": {
+      "libarchive_3.6.2.orig.tar.xz": {
+        "sha256": "9e2c1b80d5fbe59b61308fdfab6c79b5021d7ff4ff2489fb12daf0a96a83551d"
+      }
+    },
+    "byproducts": {},
+    "environment": {},
+    "command": ["dpkg-buildpackage", "-us", "-uc", "-b"]
+  },
+  "signatures": []
+}

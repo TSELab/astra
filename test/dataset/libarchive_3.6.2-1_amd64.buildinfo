@@ -1,0 +1,77 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Format: 1.0
+Source: libarchive
+Binary: libarchive-dev libarchive-tools libarchive-tools-dbgsym libarchive13 libarchive13-dbgsym
+Architecture: amd64
+Version: 3.6.2-1
+Checksums-Sha256:
+ 0382b6a54556abe4114122e50879a5af45daf639b3987d1ff4d55846a07a652e 559384 libarchive-dev_3.6.2-1_amd64.deb
+ cb409a8b1d2da9924088deef24303cd4d2ba6ed080b64f49ad27388bdc5e7964 96176 libarchive-tools-dbgsym_3.6.2-1_amd64.deb
+ 3957b6ae1ae4121c2d75de2edd5cf863f701e2604483aa8d592e7cd3af37451a 73588 libarchive-tools_3.6.2-1_amd64.deb
+ 1bb36189f177aa58bf8fe2b7d9c18d68dd9de25cdbd02415768237b6fa7564c7 1057812 libarchive13-dbgsym_3.6.2-1_amd64.deb
+ 82cc6d094f9b7c872e5bc5c4613151a7a8c20ac1a3d7d6c128dca64da618857b 343196 libarchive13_3.6.2-1_amd64.deb
+Build-Origin: Debian
+Build-Architecture: amd64
+Build-Date: Sun, 25 Dec 2022 00:02:38 +0000
+Build-Path: /build/libarchive-itPszb/libarchive-3.6.2
+Installed-Build-Depends:
+ autoconf (= 2.71-2),
+ automake (= 1:1.16.5-1.3),
+ base-files (= 12.3),
+ bash (= 5.2-2+b1),
+ binutils (= 2.39.50.20221208-5),
+ build-essential (= 12.9),
+ bzip2 (= 1.0.8-5+b1),
+ coreutils (= 9.1-1),
+ cpp-12 (= 12.2.0-10),
+ debhelper (= 13.11.3),
+ dpkg (= 1.21.13),
+ dpkg-dev (= 1.21.13),
+ gcc-12 (= 12.2.0-10),
+ libbz2-1.0 (= 1.0.8-5+b1),
+ libbz2-dev (= 1.0.8-5+b1),
+ libc6 (= 2.36-6),
+ libc6-dev (= 2.36-6),
+ libgcc-12-dev (= 12.2.0-10),
+ libicu-dev (= 72.1-3),
+ libicu72 (= 72.1-3),
+ liblz4-1 (= 1.9.4-1),
+ liblz4-dev (= 1.9.4-1),
+ liblzma-dev (= 5.4.0-0.1),
+ liblzma5 (= 5.4.0-0.1),
+ libnettle8 (= 3.8.1-2),
+ libssl3 (= 3.0.7-1),
+ libstdc++-12-dev (= 12.2.0-10),
+ libxml2 (= 2.9.14+dfsg-1.1+b2),
+ libxml2-dev (= 2.9.14+dfsg-1.1+b2),
+ libzstd-dev (= 1.5.2+dfsg-1),
+ libzstd1 (= 1.5.2+dfsg-1),
+ linux-libc-dev (= 6.0.12-1),
+ make (= 4.3-4.1),
+ nettle-dev (= 3.8.1-2),
+ perl (= 5.36.0-6),
+ zlib1g (= 1:1.2.13.dfsg-1),
+ zlib1g-dev (= 1:1.2.13.dfsg-1)
+Environment:
+ DEB_BUILD_OPTIONS="parallel=4"
+ LC_ALL="C.UTF-8"
+ SOURCE_DATE_EPOCH="1671916649"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEETrPl0/PCLhhyzVa6pXKW7Jh8MpIFAmOnkyIACgkQpXKW7Jh8
+MpLELg//eNEtS9JQK4hmhrsym/9L+L7AEMzu5CirAChkXJIHSGoF5aq7u/w6nb8m
+96OmbbTwdQLPh1rqo5PeqUIy1tsrH/WUPZhEWwda7K2kgLf5J8wf+ubW9WxSIL3k
++ThVQLjyNtc6iMrMaL1d1BrF14Kvv6Vt21lBcF9DSWdNalcsfX+31AgAbKntBwWz
+e613pLNqDks32DTHB/3orACC1Wyzcp60v7uMFciRlQxgqzbwSFSsLQjZzu8hAZMU
+17xyE0dvtpU7OINnpwphTToW8hOxcCIFeu8Y81yAh5IiNbbl+PrGMOYu9Q5OhN7w
+F/mIwNEPyZkP6GSuvCtyhl+rUQiLIQywqNART+JVIUJEg0XwmAfuCMjuOJ3a2PUq
+av9O+2FpGlL990p2xhcCbY9nisInrtWTYm2brA0gsi4dBi9jWmR2F6jMcozxtkGo
+jJmOkY9z5wURB3ZbREMWwajBHK8t+ofzC0wHUBBVOJXISVm7w8JOnUDJ8Xg3uKHL
+1cRzV+KpusI0pyeuhJE8i6zc1Rk1jrF1BXUc93X5nRPO3BJd+dTac8gVhfMIisZ3
+t+w+BlxDWdm3QP05sG2jQ5YwL5UDPJWddobnXV8B12wfP0SBIImfY5HncOUQNuME
+rKj5ux/UUYj7OzXvxk/Zuzx4xJN6PkDTmeybpqPPTT0rJvQoP7w=
+=LxGP
+-----END PGP SIGNATURE-----

@@ -2,17 +2,23 @@
 Package buildinfo implements the BuildinfoParser for AStRA.
 
 BuildinfoParser parses Debian .buildinfo files and maps the build event
-into AStRA's record structure for the mapper.
+into AStRA's record structure. Each file produces one Record.
 
 For a buildinfo file:
-- The dpkg-buildpackage invocation is represented as a step.
-- The build origin (e.g. "Debian") is the principal; the PGP key ID is stored in its attrs.
-- The upstream source tarball is the resource that carries out the step.
-- Installed build dependencies are input artifacts (consumed by the step).
-- Output .deb files are output artifacts (produced by the step).
-
-Dependency identifiers use Package URL (purl) format:
-pkg:deb/debian/<name>@<version>
+  - The dpkg-buildpackage invocation is represented as a step with ID
+    step:build:deb/<source>@<version>.
+  - The build origin (e.g. "Debian") is the principal; the PGP key ID
+    is stored in its attrs when a signature is present.
+  - The upstream source tarball is an input artifact (consumed by the step)
+    with ID artifact:tarball:deb/<source>@<upstream-version>.
+  - Installed build dependencies are resources (they constitute the build
+    environment, not inputs that are transformed). IDs use purl format:
+    pkg:deb/debian/<name>@<version>?arch=<arch>. The mapper wires them as
+    principal --uses--> resource --carries_out--> step.
+  - Output .deb files are output artifacts (produced by the step).
+    IDs use purl format: artifact:pkg:deb/debian/<name>@<version>?arch=<arch>.
+  - The buildinfo file itself is emitted as an output artifact with ID
+    artifact:buildinfo:deb/<source>@<version>?arch=<arch>.
 */
 package buildinfo
 
@@ -70,7 +76,7 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 
 	var outputItems []parser.ArtifactItem
-	var depItems []parser.ArtifactItem
+	var depItems []parser.ResourceItem
 	var pgpLines []string
 	seenDeps := map[string]bool{}
 
@@ -130,11 +136,10 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 				purl := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=%s", pkg, ver, buildArch)
 				if !seenDeps[purl] {
 					seenDeps[purl] = true
-					depItems = append(depItems, parser.ArtifactItem{
-						ID:           fmt.Sprintf("artifact:%s", purl),
-						Label:        pkg,
-						Kind:         "deb",
-						Completeness: "incomplete",
+					depItems = append(depItems, parser.ResourceItem{
+						ID:    purl,
+						Label: pkg,
+						Kind:  "deb",
 						Attrs: map[string]string{
 							"purl":    purl,
 							"version": ver,
@@ -161,18 +166,18 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 	}
 
 	upstreamVersion := strings.SplitN(stripEpoch(version), "-", 2)[0]
-	tarball := fmt.Sprintf("%s_%s.orig.tar.xz", source, upstreamVersion)
-	// Source tarball uses ?arch=source to distinguish it from installable binary packages
-	// per the PURL deb spec convention. The buildinfo version is used.
-	tarballPURL := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=source", source, upstreamVersion)
-	tarballResource := parser.ResourceItem{
-		ID:           tarballPURL,
-		Label:        tarball,
+	// Tarball artifact consumed by the build step. ID matches the artifact:tarball: scheme
+	// used by the intoto parser for .orig.tar.<ext> products — same ID means the same
+	// node in the graph when both documents are ingested.
+	tarballArtifact := parser.ArtifactItem{
+		ID:           fmt.Sprintf("artifact:tarball:deb/%s@%s", source, upstreamVersion),
+		Label:        fmt.Sprintf("%s_%s.orig.tar.xz", source, upstreamVersion),
 		Kind:         "tarball",
 		Completeness: "incomplete",
 		Attrs: map[string]string{
-			"purl":   tarballPURL,
-			"format": "orig.tar.xz",
+			"source":  source,
+			"version": upstreamVersion,
+			"format":  "orig.tar.xz",
 		},
 	}
 
@@ -187,6 +192,18 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 		Attrs: principalAttrs,
 	}
 
+	buildinfoArtifact := parser.ArtifactItem{
+		ID:           fmt.Sprintf("artifact:buildinfo:deb/%s@%s?arch=%s", source, version, buildArch),
+		Label:        fmt.Sprintf("%s_%s_%s.buildinfo", source, version, buildArch),
+		Kind:         "buildinfo",
+		Completeness: "complete",
+		Attrs: map[string]string{
+			"source":  source,
+			"version": version,
+			"arch":    buildArch,
+		},
+	}
+
 	rec := parser.Record{
 		Step: parser.StepItem{
 			ID:    fmt.Sprintf("step:build:deb/%s@%s", source, version),
@@ -199,9 +216,9 @@ func parseBuildinfo(r io.Reader) (parser.Mapped, error) {
 			},
 		},
 		Principal:    principal,
-		ArtifactsIn:  depItems,
-		ArtifactsOut: outputItems,
-		Resources:    []parser.ResourceItem{tarballResource},
+		ArtifactsIn:  []parser.ArtifactItem{tarballArtifact},
+		ArtifactsOut: append(outputItems, buildinfoArtifact),
+		Resources:    depItems,
 	}
 
 	return parser.Mapped{
