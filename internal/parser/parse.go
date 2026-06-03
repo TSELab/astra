@@ -46,6 +46,11 @@ type Record struct {
 	ArtifactsIn  []ArtifactItem `json:"artifacts_in"`
 	ArtifactsOut []ArtifactItem `json:"artifacts_out"`
 	Resources    []ResourceItem `json:"resources"`
+	// Dependencies are runtime or deployment-time artifact requirements.
+	// The mapper emits a "depends" edge from each ArtifactsOut item to each
+	// dependency, modelling artifact-to-artifact relationships without going
+	// through a step.
+	Dependencies []ArtifactItem `json:"dependencies,omitempty"`
 }
 
 // Mapped is the top-level output of a parser: Records plus metadata.

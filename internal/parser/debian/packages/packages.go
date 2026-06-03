@@ -12,6 +12,12 @@ For each package stanza:
   - The packaged .deb is the output artifact with ID
     artifact:pkg:deb/debian/<name>@<version>?arch=<arch> and SHA256 hash
     from the stanza. Completeness is "complete".
+  - Runtime dependencies from the Depends: field are modeled as input
+    artifacts (ArtifactsIn) on the archive step, using the same
+    artifact:pkg: ID scheme. Versions are resolved against the index so IDs
+    are exact and merge with nodes produced by other parsers for the same
+    package. This is distinct from build dependencies (buildinfo parser),
+    which are ResourceItems carrying_out the build step.
 
 The output artifact ID uses the same scheme as the buildinfo parser, so the
 same .deb node is shared when both sources are ingested for the same package.
@@ -46,6 +52,7 @@ type entry struct {
 	sha256   string // SHA256:
 	size     string // Size: (raw string)
 	filename string // Filename: path within archive
+	depends  string // Depends: raw field value
 }
 
 func (p *PackagesParser) archiveURL() string {
@@ -63,10 +70,11 @@ func (p *PackagesParser) Parse(r io.Reader) (parser.Mapped, error) {
 		return parser.Mapped{}, err
 	}
 
+	versionMap := buildVersionMap(entries)
 	archiveURL := p.archiveURL()
 	var records []parser.Record
 	for _, e := range entries {
-		records = append(records, entryToRecord(e, archiveURL))
+		records = append(records, entryToRecord(e, archiveURL, versionMap))
 	}
 
 	return parser.Mapped{
@@ -137,15 +145,77 @@ func extractEntry(fields map[string]string) entry {
 		sha256:   fields["SHA256"],
 		size:     fields["Size"],
 		filename: fields["Filename"],
+		depends:  fields["Depends"],
 	}
 }
 
+// buildVersionMap returns a "name:arch" → version map built from all entries.
+// Used to resolve unversioned dependency names to exact versions within the
+// same snapshot.
+func buildVersionMap(entries []entry) map[string]string {
+	m := make(map[string]string, len(entries))
+	for _, e := range entries {
+		key := e.pkg + ":" + e.arch
+		if _, exists := m[key]; !exists {
+			m[key] = e.version
+		}
+	}
+	return m
+}
+
+// parseDependsNames extracts bare package names from a raw Depends field.
+// Version constraints ("(>= 1.0)") and arch qualifiers ("[amd64]") are
+// stripped. For alternative groups ("a | b"), only the first option is used.
+func parseDependsNames(depends string) []string {
+	if depends == "" {
+		return nil
+	}
+	var names []string
+	for _, group := range strings.Split(depends, ",") {
+		// Take first alternative
+		token := strings.TrimSpace(strings.SplitN(group, "|", 2)[0])
+		// Strip version constraint
+		if i := strings.Index(token, " ("); i >= 0 {
+			token = token[:i]
+		}
+		// Strip arch qualifier
+		if i := strings.Index(token, " ["); i >= 0 {
+			token = token[:i]
+		}
+		token = strings.TrimSpace(token)
+		if token != "" {
+			names = append(names, token)
+		}
+	}
+	return names
+}
+
 // entryToRecord builds an AStRA parser.Record from a single package entry.
-func entryToRecord(e entry, archiveURL string) parser.Record {
+// versionMap is used to resolve runtime dependency names to exact versions.
+func entryToRecord(e entry, archiveURL string, versionMap map[string]string) parser.Record {
 	purl := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=%s", e.pkg, e.version, e.arch)
 	artifactID := "artifact:" + purl
 
 	resourceID := "archive:debian:" + archiveURL
+
+	var deps []parser.ArtifactItem
+	for _, depName := range parseDependsNames(e.depends) {
+		depVer, ok := versionMap[depName+":"+e.arch]
+		if !ok {
+			continue
+		}
+		depPurl := fmt.Sprintf("pkg:deb/debian/%s@%s?arch=%s", depName, depVer, e.arch)
+		deps = append(deps, parser.ArtifactItem{
+			ID:           "artifact:" + depPurl,
+			Label:        fmt.Sprintf("%s_%s_%s.deb", depName, depVer, e.arch),
+			Kind:         "deb",
+			Completeness: "incomplete",
+			Attrs: map[string]string{
+				"purl":    depPurl,
+				"version": depVer,
+			},
+		})
+	}
 
 	return parser.Record{
 		Step: parser.StepItem{
@@ -190,5 +260,6 @@ func entryToRecord(e entry, archiveURL string) parser.Record {
 				},
 			},
 		},
+		Dependencies: deps,
 	}
 }

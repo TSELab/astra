@@ -21,7 +21,6 @@ import (
 	packagesparser "github.com/TSELab/astra/internal/parser/debian/packages"
 	gitparser "github.com/TSELab/astra/internal/parser/git"
 	intotoparser "github.com/TSELab/astra/internal/parser/intoto"
-	slsaparser "github.com/TSELab/astra/internal/parser/slsa"
 	entstore "github.com/TSELab/astra/internal/store/entstore"
 )
 
@@ -75,14 +74,6 @@ var parseCmd = &cobra.Command{
 			r = f
 		case "intoto":
 			p = &intotoparser.InTotoParser{}
-			f, err := os.Open(in)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-			r = f
-		case "slsa":
-			p = &slsaparser.SlsaParser{}
 			f, err := os.Open(in)
 			if err != nil {
 				return err
@@ -255,8 +246,17 @@ var ingestPackagesCmd = &cobra.Command{
 				return err
 			}
 			defer f.Close()
-			reader = f
 			archiveURL = archiveFlagURL
+			if strings.HasSuffix(arg, ".gz") {
+				gzr, err := gzip.NewReader(f)
+				if err != nil {
+					return fmt.Errorf("decompress: %w", err)
+				}
+				defer gzr.Close()
+				reader = gzr
+			} else {
+				reader = f
+			}
 		}
 
 		mapped, err := (&packagesparser.PackagesParser{ArchiveURL: archiveURL}).Parse(reader)
@@ -334,7 +334,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	parseCmd.Flags().StringP("input", "i", "", "input file path or repo URL (git)")
 	parseCmd.Flags().StringP("output", "o", "", "output normalized JSON")
-	parseCmd.Flags().StringP("format", "f", "git", "format: git|buildinfo|packages|intoto|slsa")
+	parseCmd.Flags().StringP("format", "f", "git", "format: git|buildinfo|packages|intoto")
 	parseCmd.Flags().StringP("archive-url", "u", "https://deb.debian.org/debian", "base URL of the Debian archive (packages format only)")
 	parseCmd.MarkFlagRequired("input")
 	parseCmd.MarkFlagRequired("output")

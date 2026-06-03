@@ -1,122 +1,43 @@
 digraph supply_chain {
   rankdir=LR;
-  graph [fontname=Helvetica, nodesep=0.4, ranksep=1.0];
-  node [fontname=Helvetica, fontsize=9, margin="0.06,0.04"];
-  edge [fontsize=7];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" [label="Debian Snapshot
-20230614", shape=parallelogram, style=filled, fillcolor="#37474f"];
-  "artifact:buildinfo:deb/libarchive@3.6.2-1?arch=amd64" [label="libarchive@3.6.2-1
-[buildinfo]", shape=ellipse, style=filled, fillcolor="#ffa726"];
-  "artifact:buildinfo:deb/lz4@1.9.4-1?arch=amd64" [label="lz4@1.9.4-1
-[buildinfo]", shape=ellipse, style=filled, fillcolor="#ffa726"];
-  "artifact:buildinfo:deb/xxhash@0.8.1-1?arch=amd64" [label="xxhash@0.8.1-1
-[buildinfo]", shape=ellipse, style=filled, fillcolor="#ffa726"];
-  "artifact:gitcommit:github.com/Cyan4973/xxHash@35b0373c697b5f160d3db26b1cbb45a0d5ba788c" [label="xxHash
-@35b0373c...", shape=ellipse, style=filled, fillcolor="#42a5f5"];
-  "artifact:gitcommit:github.com/libarchive/libarchive@ba80276ccc3c941c4918ec6e2460059f0c525c43" [label="libarchive
-@ba80276c...", shape=ellipse, style=filled, fillcolor="#42a5f5"];
-  "artifact:gitcommit:github.com/lz4/lz4@5ff839680134437dbf4678f3d0c7b371d84f4964" [label="lz4
-@5ff83968...", shape=ellipse, style=filled, fillcolor="#42a5f5"];
-  "artifact:pkg:deb/debian/libarchive-dev@3.6.2-1?arch=amd64" [label="libarchive-dev@3.6.2-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/libarchive-tools-dbgsym@3.6.2-1?arch=amd64" [label="libarchive-tools-dbgsym@3.6.2-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/libarchive-tools@3.6.2-1?arch=amd64" [label="libarchive-tools@3.6.2-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/libarchive13-dbgsym@3.6.2-1?arch=amd64" [label="libarchive13-dbgsym@3.6.2-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/libarchive13@3.6.2-1?arch=amd64" [label="libarchive13@3.6.2-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/liblz4-1-dbgsym@1.9.4-1?arch=amd64" [label="liblz4-1-dbgsym@1.9.4-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/liblz4-1@1.9.4-1?arch=amd64" [label="liblz4-1@1.9.4-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" [label="liblz4-dev@1.9.4-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/libxxhash-dev@0.8.1-1?arch=amd64" [label="libxxhash-dev@0.8.1-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/libxxhash0-dbgsym@0.8.1-1?arch=amd64" [label="libxxhash0-dbgsym@0.8.1-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/libxxhash0@0.8.1-1?arch=amd64" [label="libxxhash0@0.8.1-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/lz4-dbgsym@1.9.4-1?arch=amd64" [label="lz4-dbgsym@1.9.4-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/lz4@1.9.4-1?arch=amd64" [label="lz4@1.9.4-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/xxhash-dbgsym@0.8.1-1?arch=amd64" [label="xxhash-dbgsym@0.8.1-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:pkg:deb/debian/xxhash@0.8.1-1?arch=amd64" [label="xxhash@0.8.1-1", shape=ellipse, style=filled, fillcolor="#66bb6a"];
-  "artifact:tarball:deb/libarchive@3.6.2" [label="libarchive v3.6.2
-(tarball)", shape=ellipse, style=filled, fillcolor="#8d6e63"];
-  "artifact:tarball:deb/lz4@1.9.4" [label="lz4 v1.9.4
-(tarball)", shape=ellipse, style=filled, fillcolor="#8d6e63"];
-  "artifact:tarball:deb/xxhash@0.8.1" [label="xxhash v0.8.1
-(tarball)", shape=ellipse, style=filled, fillcolor="#8d6e63"];
-  "pkg:deb/debian/liblz4-1@1.9.3-2?arch=amd64" [label="liblz4-1@1.9.3-2
-(build dep)", shape=parallelogram, style=filled, fillcolor="#a5d6a7"];
-  "pkg:deb/debian/liblz4-1@1.9.4-1?arch=amd64" [label="liblz4-1@1.9.4-1
-(build dep)", shape=parallelogram, style=filled, fillcolor="#a5d6a7"];
-  "pkg:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" [label="liblz4-dev@1.9.4-1
-(build dep)", shape=parallelogram, style=filled, fillcolor="#a5d6a7"];
-  "principal:Debian" [label="Debian", shape=diamond, style=filled, fillcolor="#78909c"];
-  "step:archive:deb/debian/libarchive-dev@3.6.2-1?arch=amd64" [label="libarchive-dev@3.6.2-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/libarchive-tools@3.6.2-1?arch=amd64" [label="libarchive-tools@3.6.2-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/libarchive13@3.6.2-1?arch=amd64" [label="libarchive13@3.6.2-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/liblz4-1@1.9.4-1?arch=amd64" [label="liblz4-1@1.9.4-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" [label="liblz4-dev@1.9.4-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/libxxhash-dev@0.8.1-1?arch=amd64" [label="libxxhash-dev@0.8.1-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/libxxhash0@0.8.1-1?arch=amd64" [label="libxxhash0@0.8.1-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/lz4@1.9.4-1?arch=amd64" [label="lz4@1.9.4-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:archive:deb/debian/xxhash@0.8.1-1?arch=amd64" [label="xxhash@0.8.1-1", shape=box, style=filled, fillcolor="#26a69a"];
-  "step:build:deb/libarchive@3.6.2-1" [label="build
-libarchive", shape=box, style=filled, fillcolor="#ab47bc"];
-  "step:build:deb/lz4@1.9.4-1" [label="build
-lz4", shape=box, style=filled, fillcolor="#ab47bc"];
-  "step:build:deb/xxhash@0.8.1-1" [label="build
-xxhash", shape=box, style=filled, fillcolor="#ab47bc"];
-  "step:linker:debtrace:build-libarchive@abd543a76d37620b25d2677121856e931de20eaebb82df6c2cb9609c936f9364" [label="debtrace
-build-libarchive", shape=box, style=filled, fillcolor="#e53935"];
-  "step:linker:debtrace:build-lz4@8c2942b1393a777fc08d312d53a8e3c5a66c0b5acea45a005e5462c5b91e1b6e" [label="debtrace
-build-lz4", shape=box, style=filled, fillcolor="#e53935"];
-  "step:linker:debtrace:build-xxhash@c3f3f9aa57237f766795edad7623ed588b90f7182423b5402a857dc5243b7e02" [label="debtrace
-build-xxhash", shape=box, style=filled, fillcolor="#e53935"];
-  "artifact:tarball:deb/lz4@1.9.4" -> "step:build:deb/lz4@1.9.4-1" [label="consumes"];
-  "step:build:deb/lz4@1.9.4-1" -> "artifact:pkg:deb/debian/liblz4-1-dbgsym@1.9.4-1?arch=amd64" [label="produces"];
-  "step:build:deb/lz4@1.9.4-1" -> "artifact:pkg:deb/debian/liblz4-1@1.9.4-1?arch=amd64" [label="produces"];
-  "step:build:deb/lz4@1.9.4-1" -> "artifact:pkg:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" [label="produces"];
-  "step:build:deb/lz4@1.9.4-1" -> "artifact:pkg:deb/debian/lz4-dbgsym@1.9.4-1?arch=amd64" [label="produces"];
-  "step:build:deb/lz4@1.9.4-1" -> "artifact:pkg:deb/debian/lz4@1.9.4-1?arch=amd64" [label="produces"];
-  "step:build:deb/lz4@1.9.4-1" -> "artifact:buildinfo:deb/lz4@1.9.4-1?arch=amd64" [label="produces"];
-  "principal:Debian" -> "pkg:deb/debian/liblz4-1@1.9.3-2?arch=amd64" [label="uses"];
-  "pkg:deb/debian/liblz4-1@1.9.3-2?arch=amd64" -> "step:build:deb/lz4@1.9.4-1" [label="carries_out"];
-  "artifact:tarball:deb/libarchive@3.6.2" -> "step:build:deb/libarchive@3.6.2-1" [label="consumes"];
-  "step:build:deb/libarchive@3.6.2-1" -> "artifact:pkg:deb/debian/libarchive-dev@3.6.2-1?arch=amd64" [label="produces"];
-  "step:build:deb/libarchive@3.6.2-1" -> "artifact:pkg:deb/debian/libarchive-tools-dbgsym@3.6.2-1?arch=amd64" [label="produces"];
-  "step:build:deb/libarchive@3.6.2-1" -> "artifact:pkg:deb/debian/libarchive-tools@3.6.2-1?arch=amd64" [label="produces"];
-  "step:build:deb/libarchive@3.6.2-1" -> "artifact:pkg:deb/debian/libarchive13-dbgsym@3.6.2-1?arch=amd64" [label="produces"];
-  "step:build:deb/libarchive@3.6.2-1" -> "artifact:pkg:deb/debian/libarchive13@3.6.2-1?arch=amd64" [label="produces"];
-  "step:build:deb/libarchive@3.6.2-1" -> "artifact:buildinfo:deb/libarchive@3.6.2-1?arch=amd64" [label="produces"];
-  "principal:Debian" -> "pkg:deb/debian/liblz4-1@1.9.4-1?arch=amd64" [label="uses"];
-  "pkg:deb/debian/liblz4-1@1.9.4-1?arch=amd64" -> "step:build:deb/libarchive@3.6.2-1" [label="carries_out"];
-  "principal:Debian" -> "pkg:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" [label="uses"];
-  "pkg:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" -> "step:build:deb/libarchive@3.6.2-1" [label="carries_out"];
-  "artifact:tarball:deb/xxhash@0.8.1" -> "step:build:deb/xxhash@0.8.1-1" [label="consumes"];
-  "step:build:deb/xxhash@0.8.1-1" -> "artifact:pkg:deb/debian/libxxhash-dev@0.8.1-1?arch=amd64" [label="produces"];
-  "step:build:deb/xxhash@0.8.1-1" -> "artifact:pkg:deb/debian/libxxhash0-dbgsym@0.8.1-1?arch=amd64" [label="produces"];
-  "step:build:deb/xxhash@0.8.1-1" -> "artifact:pkg:deb/debian/libxxhash0@0.8.1-1?arch=amd64" [label="produces"];
-  "step:build:deb/xxhash@0.8.1-1" -> "artifact:pkg:deb/debian/xxhash-dbgsym@0.8.1-1?arch=amd64" [label="produces"];
-  "step:build:deb/xxhash@0.8.1-1" -> "artifact:pkg:deb/debian/xxhash@0.8.1-1?arch=amd64" [label="produces"];
-  "step:build:deb/xxhash@0.8.1-1" -> "artifact:buildinfo:deb/xxhash@0.8.1-1?arch=amd64" [label="produces"];
-  "pkg:deb/debian/liblz4-1@1.9.3-2?arch=amd64" -> "step:build:deb/xxhash@0.8.1-1" [label="carries_out"];
-  "artifact:gitcommit:github.com/lz4/lz4@5ff839680134437dbf4678f3d0c7b371d84f4964" -> "step:linker:debtrace:build-lz4@8c2942b1393a777fc08d312d53a8e3c5a66c0b5acea45a005e5462c5b91e1b6e" [label="consumes"];
-  "step:linker:debtrace:build-lz4@8c2942b1393a777fc08d312d53a8e3c5a66c0b5acea45a005e5462c5b91e1b6e" -> "artifact:tarball:deb/lz4@1.9.4" [label="produces"];
-  "artifact:gitcommit:github.com/libarchive/libarchive@ba80276ccc3c941c4918ec6e2460059f0c525c43" -> "step:linker:debtrace:build-libarchive@abd543a76d37620b25d2677121856e931de20eaebb82df6c2cb9609c936f9364" [label="consumes"];
-  "step:linker:debtrace:build-libarchive@abd543a76d37620b25d2677121856e931de20eaebb82df6c2cb9609c936f9364" -> "artifact:tarball:deb/libarchive@3.6.2" [label="produces"];
-  "artifact:gitcommit:github.com/Cyan4973/xxHash@35b0373c697b5f160d3db26b1cbb45a0d5ba788c" -> "step:linker:debtrace:build-xxhash@c3f3f9aa57237f766795edad7623ed588b90f7182423b5402a857dc5243b7e02" [label="consumes"];
-  "step:linker:debtrace:build-xxhash@c3f3f9aa57237f766795edad7623ed588b90f7182423b5402a857dc5243b7e02" -> "artifact:tarball:deb/xxhash@0.8.1" [label="produces"];
-  "principal:Debian" -> "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" [label="uses"];
-  "step:archive:deb/debian/libarchive-dev@3.6.2-1?arch=amd64" -> "artifact:pkg:deb/debian/libarchive-dev@3.6.2-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/libarchive-dev@3.6.2-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/libarchive-tools@3.6.2-1?arch=amd64" -> "artifact:pkg:deb/debian/libarchive-tools@3.6.2-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/libarchive-tools@3.6.2-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/libarchive13@3.6.2-1?arch=amd64" -> "artifact:pkg:deb/debian/libarchive13@3.6.2-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/libarchive13@3.6.2-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/liblz4-1@1.9.4-1?arch=amd64" -> "artifact:pkg:deb/debian/liblz4-1@1.9.4-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/liblz4-1@1.9.4-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" -> "artifact:pkg:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/liblz4-dev@1.9.4-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/lz4@1.9.4-1?arch=amd64" -> "artifact:pkg:deb/debian/lz4@1.9.4-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/lz4@1.9.4-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/libxxhash-dev@0.8.1-1?arch=amd64" -> "artifact:pkg:deb/debian/libxxhash-dev@0.8.1-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/libxxhash-dev@0.8.1-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/libxxhash0@0.8.1-1?arch=amd64" -> "artifact:pkg:deb/debian/libxxhash0@0.8.1-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/libxxhash0@0.8.1-1?arch=amd64" [label="carries_out"];
-  "step:archive:deb/debian/xxhash@0.8.1-1?arch=amd64" -> "artifact:pkg:deb/debian/xxhash@0.8.1-1?arch=amd64" [label="produces"];
-  "archive:debian:https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/" -> "step:archive:deb/debian/xxhash@0.8.1-1?arch=amd64" [label="carries_out"];
+  node [fontname="Helvetica" fontsize=10];
+  edge [fontname="Helvetica" fontsize=9];
+  "artifact:pkg:deb/debian/liblzma-dev@5.6.0-0.2?arch=amd64" [label="liblzma-dev_5.6.0-0.2_amd64.deb\n(Artifact)" shape=box];
+  "artifact:pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64" [label="liblzma5_5.6.0-0.2_amd64.deb\n(Artifact)" shape=box];
+  "artifact:gitcommit:github.com/tukaani-project/xz@2d7d862e3ffa8cec4fd3fdffcd84e984a17aa429" [label="2d7d862e3ffa8cec4fd3fdffcd84e984a17aa429\n(Artifact)" shape=box];
+  "artifact:pkg:deb/debian/libsystemd0@255.4-1+b1?arch=amd64" [label="libsystemd0_255.4-1+b1_amd64.deb\n(Artifact)" shape=box];
+  "artifact:pkg:deb/debian/openssh-server@1:9.6p1-5?arch=amd64" [label="openssh-server_9.6p1-5_amd64.deb\n(Artifact)" shape=box];
+  "artifact:pkg:deb/debian/libsystemd0@255.4-1?arch=amd64" [label="libsystemd0_255.4-1_amd64.deb\n(Artifact)" shape=box];
+  "artifact:tarball:deb/xz-utils@5.6.0" [label="xz-utils_5.6.0.orig.tar.xz\n(Artifact)" shape=box];
+  "artifact:buildinfo:deb/xz-utils@5.6.0-0.2?arch=amd64" [label="xz-utils_5.6.0-0.2_amd64.buildinfo\n(Artifact)" shape=box];
+  "step:build:deb/systemd@255.4-1" [label="dpkg-buildpackage\n(Step)" shape=diamond];
+  "step:build:deb/xz-utils@5.6.0-0.2" [label="dpkg-buildpackage\n(Step)" shape=diamond];
+  "step:build:deb/openssh@1:9.6p1-5" [label="dpkg-buildpackage\n(Step)" shape=diamond];
+  "principal:Debian" [label="principal:Debian\n(Principal)" shape=oval];
+  "pkg:deb/debian/liblzma5@5.6.0-0.1?arch=amd64" [label="pkg:deb/debian/liblzma5@5.6.0-0.1?arch=amd64\n(Resource)" shape=hexagon];
+  "pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64" [label="pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64\n(Resource)" shape=hexagon];
+  "archive:debian:https://snapshot.debian.org/archive/debian/20240315T085855Z" [label="archive:debian:https://snapshot.debian.org/archive/debian/20240315T085855Z\n(Resource)" shape=hexagon];
+  "pkg:deb/debian/liblzma5@5.4.5-0.3?arch=amd64" [label="pkg:deb/debian/liblzma5@5.4.5-0.3?arch=amd64\n(Resource)" shape=hexagon];
+  "pkg:deb/debian/liblzma-dev@5.6.0-0.1?arch=amd64" [label="pkg:deb/debian/liblzma-dev@5.6.0-0.1?arch=amd64\n(Resource)" shape=hexagon];
+  "pkg:deb/debian/liblzma-dev@5.6.0-0.2?arch=amd64" [label="pkg:deb/debian/liblzma-dev@5.6.0-0.2?arch=amd64\n(Resource)" shape=hexagon];
+  "artifact:tarball:deb/xz-utils@5.6.0" -> "step:build:deb/xz-utils@5.6.0-0.2" [label="consumes"];
+  "step:build:deb/xz-utils@5.6.0-0.2" -> "artifact:pkg:deb/debian/liblzma-dev@5.6.0-0.2?arch=amd64" [label="produces"];
+  "step:build:deb/xz-utils@5.6.0-0.2" -> "artifact:pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64" [label="produces"];
+  "step:build:deb/xz-utils@5.6.0-0.2" -> "artifact:buildinfo:deb/xz-utils@5.6.0-0.2?arch=amd64" [label="produces"];
+  "principal:Debian" -> "pkg:deb/debian/liblzma5@5.4.5-0.3?arch=amd64" [label="uses"];
+  "pkg:deb/debian/liblzma5@5.4.5-0.3?arch=amd64" -> "step:build:deb/xz-utils@5.6.0-0.2" [label="carries_out"];
+  "step:build:deb/openssh@1:9.6p1-5" -> "artifact:pkg:deb/debian/openssh-server@1:9.6p1-5?arch=amd64" [label="produces"];
+  "principal:Debian" -> "pkg:deb/debian/liblzma-dev@5.6.0-0.2?arch=amd64" [label="uses"];
+  "pkg:deb/debian/liblzma-dev@5.6.0-0.2?arch=amd64" -> "step:build:deb/openssh@1:9.6p1-5" [label="carries_out"];
+  "principal:Debian" -> "pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64" [label="uses"];
+  "pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64" -> "step:build:deb/openssh@1:9.6p1-5" [label="carries_out"];
+  "step:build:deb/systemd@255.4-1" -> "artifact:pkg:deb/debian/libsystemd0@255.4-1?arch=amd64" [label="produces"];
+  "principal:Debian" -> "pkg:deb/debian/liblzma-dev@5.6.0-0.1?arch=amd64" [label="uses"];
+  "pkg:deb/debian/liblzma-dev@5.6.0-0.1?arch=amd64" -> "step:build:deb/systemd@255.4-1" [label="carries_out"];
+  "principal:Debian" -> "pkg:deb/debian/liblzma5@5.6.0-0.1?arch=amd64" [label="uses"];
+  "pkg:deb/debian/liblzma5@5.6.0-0.1?arch=amd64" -> "step:build:deb/systemd@255.4-1" [label="carries_out"];
+  "principal:Debian" -> "archive:debian:https://snapshot.debian.org/archive/debian/20240315T085855Z" [label="uses"];
+  "artifact:pkg:deb/debian/openssh-server@1:9.6p1-5?arch=amd64" -> "artifact:pkg:deb/debian/libsystemd0@255.4-1+b1?arch=amd64" [label="depends"];
+  "artifact:pkg:deb/debian/libsystemd0@255.4-1+b1?arch=amd64" -> "artifact:pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64" [label="depends"];
+  "artifact:pkg:deb/debian/liblzma-dev@5.6.0-0.2?arch=amd64" -> "artifact:pkg:deb/debian/liblzma5@5.6.0-0.2?arch=amd64" [label="depends"];
 }
