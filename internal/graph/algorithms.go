@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+	"sort"
 
 	gonumgraph "gonum.org/v1/gonum/graph"
 	network "gonum.org/v1/gonum/graph/network"
@@ -121,6 +122,96 @@ func DegreeAnalysis(g AstraGraph) map[string]Degree {
 	return result
 }
 
+// SourceNodes finds the nodes with in-degree =0 in the AStRA graph.
+//
+// The result is an array of source nodes
+// In AStRA-based analysis, source nodes help identify
+func SourceNodes(g AstraGraph) []string {
+	degrees := DegreeAnalysis(g)
+
+	var sources []string
+
+	for id, degree := range degrees {
+		if degree.In == 0 {
+			sources = append(sources, id)
+		}
+	}
+
+	return sources
+}
+
+// SinkNodes finds the nodes with out-degree =0 in the AStRA graph.
+//
+// The result is an array of sink nodes
+func SinkNodes(g AstraGraph) []string {
+	degrees := DegreeAnalysis(g)
+
+	var sinks []string
+
+	for id, degree := range degrees {
+		if degree.Out == 0 {
+			sinks = append(sinks, id)
+		}
+	}
+
+	return sinks
+}
+
+// DeadNodes finds the nodes with in-degree =0, and out-degree=0 in the AStRA graph.
+//
+// The result is an array of dead nodes
+func DeadNodes(g AstraGraph) []string {
+	degrees := DegreeAnalysis(g)
+
+	var deads []string
+
+	for id, degree := range degrees {
+		if degree.Out == 0 && degree.In == 0 {
+			deads = append(deads, id)
+		}
+	}
+
+	return deads
+}
+
+// Ancestors returns all upstream nodes that can reach start.
+// It follows incoming edges recursively using the Gonum graph representation.
+// If start is not found in the graph, it returns an empty slice.
+// The returned slice does not include start itself.
+func Ancestors(g AstraGraph, start string) []string {
+	dg, ids := ToGonum(g)
+
+	startID, ok := ids.StringToInt[start]
+	if !ok {
+		return []string{}
+	}
+
+	visited := make(map[int64]bool)
+	var result []string
+
+	var dfs func(int64)
+	dfs = func(id int64) {
+		to := dg.To(id) // incoming neighbors = parents
+
+		for to.Next() {
+			parent := to.Node().ID()
+
+			if visited[parent] {
+				continue
+			}
+
+			visited[parent] = true
+			result = append(result, ids.IntToString[parent])
+
+			dfs(parent)
+		}
+	}
+
+	dfs(startID)
+
+	return result
+}
+
 // ShortestPath computes the shortest path between two nodes in the AStRA graph
 // using Dijkstra's algorithm.
 //
@@ -172,6 +263,8 @@ func ShortestPath(g AstraGraph, fromID string, toID string) ([]string, bool) {
 // control points in the supply chain. These nodes act as bridges between different
 // parts of the graph, and their compromise may allow an attacker to influence or
 // disrupt multiple downstream paths.
+// This operation can be expensive on large graphs because it computes shortest
+// path information across many source-target pairs.`
 func BetweennessCentrality(g AstraGraph) map[string]float64 {
 	dg, ids := ToGonum(g)
 
@@ -183,4 +276,27 @@ func BetweennessCentrality(g AstraGraph) map[string]float64 {
 	}
 
 	return result
+}
+
+type BetweennessResult struct {
+	ID    string  `json:"id"`
+	Score float64 `json:"score"`
+}
+
+// Rank betweenness centrality results by centrality score in descending order
+func RankBetweenness(bw map[string]float64) []BetweennessResult {
+	results := make([]BetweennessResult, 0, len(bw))
+
+	for gonumID, score := range bw {
+		results = append(results, BetweennessResult{
+			ID:    gonumID,
+			Score: score,
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	return results
 }

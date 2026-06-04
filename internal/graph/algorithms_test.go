@@ -2,6 +2,7 @@ package graph
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -284,4 +285,42 @@ func TestBetweennessCentrality_Star(t *testing.T) {
 	if center <= 0 {
 		t.Errorf("expected center > 0, got %v", center)
 	}
+}
+
+func TestAncestors_Star(t *testing.T) {
+	g := NewAstraGraph()
+
+	nodes := []string{"A", "B", "C", "D", "E"}
+	for _, n := range nodes {
+		g.Artifacts[n] = Artifact{ID: n}
+	}
+
+	//     A
+	//     ↓
+	// B → C → D
+	//     ↑
+	//     E
+	g.Edges = []Edge{
+		{"A", "C", ""},
+		{"B", "C", ""},
+		{"C", "D", ""},
+		{"E", "C", ""},
+	}
+
+	an := Ancestors(g, "C")
+
+	ancestors := []string{"A", "B", "D", "E"}
+
+	// C = highest (critical bridge)
+	// others = 0
+	for n, v := range an {
+
+		if slices.Contains(ancestors, v) {
+			continue
+		}
+		if n != len(ancestors) {
+			t.Errorf("expected %v got %v", len(ancestors), n)
+		}
+	}
+
 }
