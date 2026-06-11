@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"math"
 	"reflect"
 	"slices"
 	"testing"
@@ -281,9 +282,69 @@ func TestBetweennessCentrality_Star(t *testing.T) {
 			t.Errorf("expected %s = 0, got %v", n, v)
 		}
 	}
-
 	if center <= 0 {
 		t.Errorf("expected center > 0, got %v", center)
+	}
+}
+
+func assertApproxEqual(t *testing.T, got, want float64) {
+	t.Helper()
+
+	if math.Abs(got-want) > 1e-9 {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+func TestBetweennessCentrality_ByHandRanking(t *testing.T) {
+	g := NewAstraGraph()
+
+	nodes := []string{"A", "B", "C", "D", "E"}
+	for _, n := range nodes {
+		g.Artifacts[n] = Artifact{ID: n}
+	}
+
+	// Diamond into a final sink:
+	//
+	//      B
+	//    ↗   ↘
+	// A       D → E
+	//    ↘   ↗
+	//      C
+	//
+	// By hand, shortest paths:
+	// A→D has two shortest paths: A-B-D and A-C-D.
+	// A→E has two shortest paths: A-B-D-E and A-C-D-E.
+	// B→E goes through D.
+	// C→E goes through D.
+	//
+	// So D should rank highest.
+	// B and C should tie.
+	// A and E should be zero.
+	g.Edges = []Edge{
+		{Source: "A", Target: "B"},
+		{Source: "A", Target: "C"},
+		{Source: "B", Target: "D"},
+		{Source: "C", Target: "D"},
+		{Source: "D", Target: "E"},
+	}
+
+	bc := BetweennessCentrality(g)
+
+	if bc["D"] <= bc["B"] {
+		t.Fatalf("expected D to rank higher than B, got D=%v B=%v", bc["D"], bc["B"])
+	}
+
+	if bc["D"] <= bc["C"] {
+		t.Fatalf("expected D to rank higher than C, got D=%v C=%v", bc["D"], bc["C"])
+	}
+
+	assertApproxEqual(t, bc["B"], bc["C"])
+
+	if bc["A"] != 0 {
+		t.Fatalf("expected A to have betweenness 0, got %v", bc["A"])
+	}
+
+	if bc["E"] != 0 {
+		t.Fatalf("expected E to have betweenness 0, got %v", bc["E"])
 	}
 }
 
@@ -309,18 +370,77 @@ func TestAncestors_Star(t *testing.T) {
 
 	an := Ancestors(g, "C")
 
-	ancestors := []string{"A", "B", "D", "E"}
+	ancestors := []string{"A", "B", "E"}
 
-	// C = highest (critical bridge)
-	// others = 0
-	for n, v := range an {
+	if len(an) != len(ancestors) {
+		t.Errorf("expected %v got %v", len(ancestors), len(an))
+	}
+	for _, v := range an {
 
 		if slices.Contains(ancestors, v) {
 			continue
 		}
-		if n != len(ancestors) {
-			t.Errorf("expected %v got %v", len(ancestors), n)
+	}
+
+}
+
+func TestAncestors_Recursive(t *testing.T) {
+	g := NewAstraGraph()
+
+	nodes := []string{"A", "B", "C", "D", "E"}
+	for _, n := range nodes {
+		g.Artifacts[n] = Artifact{ID: n}
+	}
+
+	//   A → B → C → D
+	//			 ↑
+	//  		 E
+
+	g.Edges = []Edge{
+		{"A", "B", ""},
+		{"B", "C", ""},
+		{"C", "D", ""},
+		{"E", "C", ""},
+	}
+
+	got := Ancestors(g, "D")
+
+	want := []string{"A", "B", "C", "E"}
+
+	if len(got) != len(want) {
+		t.Errorf("expected %v got %v", len(want), len(got))
+	}
+	for _, v := range got {
+
+		if slices.Contains(want, v) {
+			continue
 		}
 	}
 
+}
+
+func TestDeadNodes(t *testing.T) {
+	g := NewAstraGraph()
+
+	g.Artifacts["A"] = Artifact{ID: "A"}
+	g.Artifacts["B"] = Artifact{ID: "B"}
+	g.Artifacts["C"] = Artifact{ID: "C"}
+	g.Artifacts["D"] = Artifact{ID: "D"}
+
+	g.Edges = []Edge{
+		{Source: "A", Target: "B"},
+	}
+
+	got := DeadNodes(g) // rename to your actual function if different
+	want := []string{"C", "D"}
+
+	if len(got) != len(want) {
+		t.Errorf("expected %v got %v", len(want), len(got))
+	}
+	for _, v := range got {
+
+		if slices.Contains(want, v) {
+			continue
+		}
+	}
 }

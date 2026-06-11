@@ -122,56 +122,48 @@ func DegreeAnalysis(g AstraGraph) map[string]Degree {
 	return result
 }
 
-// SourceNodes finds the nodes with in-degree =0 in the AStRA graph.
+// SourceNodes finds the soure nodes in the graoh
+// a source node is where the flow starts in the graph
+// which are nodes with in-degree =0 in the AStRA graph.
 //
 // The result is an array of source nodes
 // In AStRA-based analysis, source nodes help identify
 func SourceNodes(g AstraGraph) []string {
-	degrees := DegreeAnalysis(g)
-
-	var sources []string
-
-	for id, degree := range degrees {
-		if degree.In == 0 {
-			sources = append(sources, id)
-		}
-	}
-
-	return sources
+	return filterDegree(g, func(d Degree) bool {
+		return d.In == 0
+	})
 }
 
 // SinkNodes finds the nodes with out-degree =0 in the AStRA graph.
 //
 // The result is an array of sink nodes
 func SinkNodes(g AstraGraph) []string {
-	degrees := DegreeAnalysis(g)
-
-	var sinks []string
-
-	for id, degree := range degrees {
-		if degree.Out == 0 {
-			sinks = append(sinks, id)
-		}
-	}
-
-	return sinks
+	return filterDegree(g, func(d Degree) bool {
+		return d.Out == 0
+	})
 }
 
 // DeadNodes finds the nodes with in-degree =0, and out-degree=0 in the AStRA graph.
 //
 // The result is an array of dead nodes
 func DeadNodes(g AstraGraph) []string {
+	return filterDegree(g, func(d Degree) bool {
+		return d.In == 0 && d.Out == 0
+	})
+}
+
+// filterDegree returns all nodes whose Degree satisfies keep.
+func filterDegree(g AstraGraph, keep func(Degree) bool) []string {
 	degrees := DegreeAnalysis(g)
 
-	var deads []string
-
+	var nodes []string
 	for id, degree := range degrees {
-		if degree.Out == 0 && degree.In == 0 {
-			deads = append(deads, id)
+		if keep(degree) {
+			nodes = append(nodes, id)
 		}
 	}
 
-	return deads
+	return nodes
 }
 
 // Ancestors returns all upstream nodes that can reach start.
