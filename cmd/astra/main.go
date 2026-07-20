@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -39,6 +40,16 @@ func writeJSON(path string, v any) error {
 		return err
 	}
 	return os.WriteFile(path, b, 0o644)
+}
+
+func printJSON(v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(b))
+	return nil
 }
 
 var parseCmd = &cobra.Command{
@@ -324,6 +335,258 @@ var ingestIntotoCmd = &cobra.Command{
 	},
 }
 
+// ── query ─────────────────────────────────────────────────────────────────────
+
+var queryCmd = &cobra.Command{
+	Use:   "query",
+	Short: "Query and analyze the stored AStRA graph",
+}
+
+var queryStatsCmd = &cobra.Command{
+	Use:   "stats",
+	Short: "Print basic graph statistics",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+
+		output := map[string]any{
+			"metric":           "graph statistics",
+			"total node count": len(g.Artifacts) + len(g.Resources) + len(g.Principals) + len(g.Steps),
+			"artifacts":        len(g.Artifacts),
+			"resources":        len(g.Resources),
+			"principals":       len(g.Principals),
+			"steps":            len(g.Steps),
+			"edges":            len(g.Edges),
+		}
+
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+	},
+}
+
+var queryDegreeCmd = &cobra.Command{
+	Use:   "degree",
+	Short: "Print in-degree and out-degree for every node",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+		degrees := graph.DegreeAnalysis(g)
+		output := map[string]any{
+			"metric":  "degree metrics for each node",
+			"count":   len(degrees),
+			"degrees": degrees,
+		}
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+	},
+}
+
+var querySourcesCmd = &cobra.Command{
+	Use:   "sources",
+	Short: "Print source nodes: nodes with in-degree 0",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+		sources := graph.SourceNodes(g)
+		output := map[string]any{
+			"metric":  "source nodes",
+			"count":   len(sources),
+			"sources": sources,
+		}
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+	},
+}
+
+var querySinksCmd = &cobra.Command{
+	Use:   "sinks",
+	Short: "Print sink nodes: nodes with out-degree 0",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+		sinks := graph.SinkNodes(g)
+		output := map[string]any{
+			"metric": "sink nodes",
+			"count":  len(sinks),
+			"sinks":  sinks,
+		}
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+
+	},
+}
+
+var queryDeadCmd = &cobra.Command{
+	Use:   "dead",
+	Short: "Print dead nodes: nodes with in-degree 0 and out-degree 0",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+
+		dead := graph.DeadNodes(g)
+		output := map[string]any{
+			"metric": "dead nodes",
+			"count":  len(dead),
+			"dead":   dead,
+		}
+
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+
+	},
+}
+
+var queryReachCmd = &cobra.Command{
+	Use:   "reach <node-id>",
+	Short: "Print all downstream nodes reachable from a node",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+
+		start := args[0]
+		reachable, err := graph.ReachableFrom(g, start)
+		if err != nil {
+			log.Fatalf("error in reachability operation: %v", err)
+		}
+		output := map[string]any{
+			"metric":    "reachability",
+			"count":     len(reachable),
+			"start":     start,
+			"reachable": reachable,
+		}
+
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+
+	},
+}
+
+var queryPathCmd = &cobra.Command{
+	Use:   "path <source-node-id> <target-node-id>",
+	Short: "Print the shortest directed path between two nodes",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+
+		source := args[0]
+		target := args[1]
+		path, _ := graph.ShortestPath(g, source, target)
+
+		output := map[string]any{
+			"metric": "shortest path",
+			"found":  len(path) > 0,
+			"source": source,
+			"target": target,
+			"path":   path,
+			"length": len(path),
+		}
+
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+	},
+}
+
+var queryAncestorsCmd = &cobra.Command{
+	Use:   "ancestors <node-id>",
+	Short: "Print all upstream ancestors of a node",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+
+		start := args[0]
+		ancestors := graph.Ancestors(g, start)
+
+		output := map[string]any{
+			"metric":    "ancestors",
+			"count":     len(ancestors),
+			"start":     start,
+			"ancestors": ancestors,
+		}
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+	},
+}
+
+var queryBetweennessCmd = &cobra.Command{
+	Use:   "betweenness",
+	Short: "Rank nodes by betweenness centrality",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		g, err := db.LoadGraph(ctx, "")
+		if err != nil {
+			log.Fatalf("load graph: %v", err)
+		}
+		start := time.Now()
+		bw := graph.BetweennessCentrality(g)
+		ranked := graph.RankBetweenness(bw)
+		elapsed := time.Since(start)
+		fmt.Printf("Betweenness calculation process took: %s\n", elapsed)
+		output := map[string]any{
+			"metric": "betweenness_centrality",
+			"count":  len(ranked),
+			"nodes":  ranked,
+		}
+		out_file, _ := cmd.Flags().GetString("output")
+
+		if out_file != "" {
+			return writeJSON(out_file, output)
+		}
+		return printJSON(output)
+
+	},
+}
+
 // ── root ──────────────────────────────────────────────────────────────────────
 
 var rootCmd = &cobra.Command{
@@ -353,11 +616,28 @@ func init() {
 	ingestGitCmd.Flags().String("prev-tag", "", "previous tag to stop at (default: auto-detected)")
 
 	ingestIntotoCmd.Flags().String("linker", "debtrace", "name of the provenance database that produced the link file")
+	queryBetweennessCmd.Flags().StringP("output", "o", "", "output betweenness results JSON")
+	queryBetweennessCmd.MarkFlagRequired("output")
+	queryDegreeCmd.Flags().StringP("output", "o", "", "output degree results JSON")
+	queryDegreeCmd.MarkFlagRequired("output")
+	queryDeadCmd.Flags().StringP("output", "o", "", "output dead nodes results JSON")
+	queryDeadCmd.MarkFlagRequired("output")
+	queryStatsCmd.Flags().StringP("output", "o", "", "output graph stats results JSON")
+	querySourcesCmd.Flags().StringP("output", "o", "", "output source nodes results JSON")
+	querySourcesCmd.MarkFlagRequired("output")
+	querySinksCmd.Flags().StringP("output", "o", "", "output sink nodes results JSON")
+	querySinksCmd.MarkFlagRequired("output")
+	queryReachCmd.Flags().StringP("output", "o", "", "output reachable nodes results JSON")
+	queryReachCmd.MarkFlagRequired("output")
+	queryPathCmd.Flags().StringP("output", "o", "", "output path nodes results JSON")
+	queryPathCmd.MarkFlagRequired("output")
+	queryAncestorsCmd.Flags().StringP("output", "o", "", "output ancestor nodes results JSON")
+	queryAncestorsCmd.MarkFlagRequired("output")
 
 	ingestDebianCmd.AddCommand(ingestBuildinfoCmd, ingestPackagesCmd)
 	ingestCmd.AddCommand(ingestGitCmd, ingestDebianCmd, ingestIntotoCmd)
-
-	rootCmd.AddCommand(parseCmd, mapCmd, vizCmd, initCmd, ingestCmd)
+	queryCmd.AddCommand(queryDegreeCmd, queryStatsCmd, querySourcesCmd, querySinksCmd, queryDeadCmd, queryReachCmd, queryPathCmd, queryAncestorsCmd, queryBetweennessCmd)
+	rootCmd.AddCommand(parseCmd, mapCmd, vizCmd, initCmd, ingestCmd, queryCmd)
 }
 
 func main() {
