@@ -1,76 +1,88 @@
-# Test data
+# XZ-Utils Attack Dataset
+
+Study of the xz-utils backdoor (CVE-2024-3094) using AStRAFy.
 
 ## Dataset (`dataset/`)
 
-Three Debian source packages from the bookworm release, each with a buildinfo, a
-debtrace link file, and a shared Packages index from the same snapshot.
-
 | File | Description |
 |---|---|
-| `lz4_1.9.4-1_amd64.buildinfo` | Debian build record for lz4 1.9.4-1 |
-| `libarchive_3.6.2-1_amd64.buildinfo` | Debian build record for libarchive 3.6.2-1 |
-| `xxhash_0.8.1-1_amd64.buildinfo` | Debian build record for xxhash 0.8.1-1 |
-| `lz4-build.link.json` | Link file: `github.com/lz4/lz4@v1.9.4` → `lz4_1.9.4.orig.tar.gz` |
-| `libarchive-build.link.json` | Link file: `github.com/libarchive/libarchive@v3.6.2` → `libarchive_3.6.2.orig.tar.xz` |
-| `xxhash-build.link.json` | Link file: `github.com/Cyan4973/xxHash@v0.8.1` → `xxhash_0.8.1.orig.tar.gz` |
-| `Packages.gz` | Binary package index, Debian snapshot `20230614T204442Z`, bookworm/main/amd64 |
+| `xz-utils_5.6.0-0.2_amd64.buildinfo` | Debian build record for the compromised xz-utils 5.6.0-0.2 release |
+| `openssh_9.6p1-5_amd64.buildinfo` | Debian build record for openssh (runtime and build dependency on liblzma) |
+| `systemd_255.4-1_amd64.buildinfo` | Debian build record for systemd (runtime and build dependency on liblzma) |
+| `Packages.gz` | Binary package index, Debian unstable snapshot `20240315T085855Z` |
 
-**Note on versioning:** link file products use the upstream version (`0.8.1`) while
-buildinfos carry the full Debian version (`0.8.1-1`). This is correct — orig tarballs
-are always named with the upstream version only. The `-1` Debian revision does not
-appear in the tarball filename. The parsers strip the revision before generating
-tarball artifact IDs, so both sides resolve to the same node.
-
-Snapshot URL used:
-```
-https://snapshot.debian.org/archive/debian/20230614T204442Z/dists/bookworm/main/binary-amd64/
-```
+The snapshot is from March 15, 2024 — within the window when `5.6.0-0.2` was the
+current version in Debian unstable (Feb 26 – March 28, 2024). `liblzma5@5.6.0-0.2`
+appears as both the build output and the runtime/build dependency of downstream
+packages, with no emergency replacement noise.
 
 ## Reproducing
 
-From `test/output/`, with an empty `astra.db`:
+From `output/`, with an empty `astra.db`:
 
 ```bash
 astra init
-astra ingest debian buildinfo ../dataset/lz4_1.9.4-1_amd64.buildinfo
-astra ingest debian buildinfo ../dataset/libarchive_3.6.2-1_amd64.buildinfo
-astra ingest debian buildinfo ../dataset/xxhash_0.8.1-1_amd64.buildinfo
-astra ingest intoto --linker debtrace ../dataset/lz4-build.link.json
-astra ingest intoto --linker debtrace ../dataset/libarchive-build.link.json
-astra ingest intoto --linker debtrace ../dataset/xxhash-build.link.json
-astra ingest debian packages ../dataset/Packages.gz
-astra ingest git --tag v1.9.4 https://github.com/lz4/lz4.git
-astra ingest git --tag v3.6.2 https://github.com/libarchive/libarchive.git
-astra ingest git --tag v0.8.1 https://github.com/Cyan4973/xxHash.git
+astra ingest debian buildinfo ../dataset/xz-utils_5.6.0-0.2_amd64.buildinfo
+astra ingest debian buildinfo ../dataset/openssh_9.6p1-5_amd64.buildinfo
+astra ingest debian buildinfo ../dataset/systemd_255.4-1_amd64.buildinfo
+astra ingest debian packages ../dataset/Packages.gz \
+  --archive-url "https://snapshot.debian.org/archive/debian/20240315T085855Z"
+astra ingest git --tag v5.6.0 https://github.com/tukaani-project/xz.git
 astra viz -o full.dot
+python3 gen_subset.py
+dot -Tsvg subset.dot -o subset.svg
 ```
 
 ## Output (`output/`)
 
 | File | Description |
 |---|---|
-| `full.dot` | Complete graph export — gitignored, too large to commit (~36 MB, ~64K nodes) |
-| `subset.dot` | Focused supply-chain subset — see below |
+| `full.dot` | Complete graph — gitignored (~73K artifacts, 73K steps, ~391K edges) |
+| `subset.dot` | Focused attack chain subset |
 | `subset.svg` | Rendered SVG of `subset.dot` |
+| `gen_subset.py` | Script that extracts the focused subset from `full.dot` |
 
-### subset.dot / subset.svg
+## What the Graph Shows
 
-`subset.svg` is a **focused subset** of the full graph, not a complete view.
-The full graph (`full.dot`) contains ~64K artifact nodes and ~127K edges — the
-majority are git file artifacts and archive steps for all 63K packages in the
-Packages index. Graphviz cannot render a graph that size to explore `full.dot`.
+`subset.svg` is a **focused subset** showing the attack-relevant supply chain.
+The full graph contains all 72K packages from the Debian unstable snapshot — too
+large to render directly.
 
-The subset is hand-filtered to show the meaningful provenance chain for the
-three packages:
+### Supply chain gap
 
-- Git commit artifact for each upstream tag (from the link file materials)
-- Debtrace linker step: git commit → source tarball
-- Source tarball artifact (the merge point between the linker step and the build step)
-- Build step and its output artifacts (.deb binaries, buildinfo file)
-- Archive steps (one per binary package) and the Debian snapshot resource
-- `principal:Debian`
-- Cross-package build dependencies: `liblz4-1` and `liblz4-dev` are shown as
-  resources on the libarchive build step, since libarchive's buildinfo lists the
-  exact lz4 version that the lz4 build step produced in this same graph
+```
+artifact:gitcommit:github.com/tukaani-project/xz@2d7d862e...  [no outgoing edges — disconnected]
 
-Edge types: `consumes`, `produces`, `carries_out`, `uses`.
+artifact:tarball:deb/xz-utils@5.6.0  (completeness: incomplete)
+  --consumes-->
+step:build:deb/xz-utils@5.6.0-0.2
+  --produces-->
+liblzma5_5.6.0-0.2 / liblzma-dev_5.6.0-0.2 (compromised artifacts)
+```
+
+The git commit and the tarball are structurally disconnected: the tarball is
+referenced by the buildinfo but has no attested producer. This is the provenance
+gap the attack exploited. The malicious content was injected into the upstream
+tarball outside of any verifiable build pipeline.
+
+### Runtime blast radius
+
+```
+openssh-server --depends--> libsystemd0 --depends--> liblzma5
+```
+
+Runtime dependencies (from `Packages Depends:`) are modelled as direct
+`depends` edges between artifact nodes. Starting from `liblzma5@5.6.0-0.2`
+and traversing reverse `depends` edges gives the set of packages affected at
+runtime.
+
+### Build-time compromise
+
+```
+pkg:liblzma5@5.6.0-0.2  --carries_out-->  step:build:deb/openssh@1:9.6p1-5
+pkg:liblzma5@5.6.0-0.1  --carries_out-->  step:build:deb/systemd@255.4-1
+```
+
+The compromised library was also in the build environment of both downstream
+packages. Build dependencies (from `Installed-Build-Depends:`) are modelled as
+resource nodes with `carries_out` edges to the build step.

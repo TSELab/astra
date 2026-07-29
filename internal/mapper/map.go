@@ -127,6 +127,20 @@ func ToAstraGraph(m parser.Mapped) graph.AstraGraph {
 			addEdge(rec.Principal.ID, r.ID, "uses", nil)
 			addEdge(r.ID, rec.Step.ID, "carries_out", nil)
 		}
+
+		for _, dep := range rec.Dependencies {
+			if dep.ID == "" {
+				continue
+			}
+			if _, ok := out.Artifacts[dep.ID]; !ok {
+				out.Artifacts[dep.ID] = normalizeArtifact(dep)
+			}
+			// depends edges go from each output artifact to the dependency.
+			// Direction: openssh-server --depends--> libsystemd0 --depends--> liblzma5
+			for _, out := range rec.ArtifactsOut {
+				addEdge(out.ID, dep.ID, "depends", nil)
+			}
+		}
 	}
 
 	return out
